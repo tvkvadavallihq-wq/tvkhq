@@ -151,20 +151,14 @@ async function loadComplaintByNumber(trackingId: string, phone?: string): Promis
       const assignmentColumns = await getPublicTableColumns(supabase, "complaint_assignments");
       const assignmentOrderColumn = assignmentColumns.has("created_at")
         ? "created_at"
-        : assignmentColumns.has("assigned_at")
-          ? "assigned_at"
-          : "id";
+        : "id";
       const selectColumns = pickSelectColumns(assignmentColumns, [
         "id",
         "complaint_id",
         "assigned_to",
         "assigned_by",
-        "assigned_by_role",
-        "assigned_to_role",
         "remarks",
-        "note",
         "created_at",
-        "assigned_at",
       ]).join(",");
 
       return supabase
@@ -220,8 +214,8 @@ async function loadComplaintByNumber(trackingId: string, phone?: string): Promis
     assignment: assignmentResult.data
       ? {
           id: assignmentResult.data.id,
-          note: assignmentResult.data.remarks ?? assignmentResult.data.note ?? null,
-          assigned_at: assignmentResult.data.created_at ?? assignmentResult.data.assigned_at,
+          note: assignmentResult.data.remarks ?? null,
+          assigned_at: assignmentResult.data.created_at,
           assigned_to: assignedUserResult.data
             ? {
                 id: assignedUserResult.data.id,

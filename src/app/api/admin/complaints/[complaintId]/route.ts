@@ -90,7 +90,6 @@ async function loadComplaintAccess(service: ReturnType<typeof createSupabaseServ
     "current_status",
     "mobile",
     "updated_at",
-    "resolved_at",
   ]
     .filter((column) => complaintColumns.has(column))
     .join(",");
@@ -129,12 +128,6 @@ async function insertComplaintStatusHistory(
     remarks: args.remarks,
     updated_by: args.updatedBy,
     created_at: new Date().toISOString(),
-    from_status: args.oldStatus,
-    to_status: args.newStatus,
-    note: args.remarks,
-    changed_by: args.updatedBy,
-    created_by: args.updatedBy,
-    activity_type: args.oldStatus === args.newStatus ? "COMMENT" : "STATUS_CHANGE",
   });
 
   const { data, error } = await service.from("complaint_status_history").insert(payload as any).select("id").single();
@@ -156,18 +149,17 @@ async function updateComplaintStatus(
   args: {
     complaintId: string;
     toStatus: ComplaintStatus;
-    previousResolvedAt: string | null;
+    assignedUserId?: string | null;
   },
 ) {
-  const columns = await getPublicTableColumns(service as any, "complaints");
   const now = new Date().toISOString();
   const payload: Record<string, unknown> = {
     current_status: args.toStatus,
     updated_at: now,
   };
 
-  if (columns.has("resolved_at") && isResolvedStatus(args.toStatus)) {
-    payload.resolved_at = args.previousResolvedAt ?? now;
+  if (args.assignedUserId !== undefined) {
+    payload.assigned_user_id = args.assignedUserId;
   }
 
   const { error } = await service.from("complaints").update(payload as any).eq("id", args.complaintId);
@@ -182,8 +174,6 @@ async function insertComplaintAssignment(
     complaintId: string;
     assignedTo: string;
     assignedBy: string;
-    assignedByRole: UserRole;
-    assignedToRole: UserRole;
     remarks: string | null;
   },
 ) {
@@ -194,14 +184,8 @@ async function insertComplaintAssignment(
     complaint_id: args.complaintId,
     assigned_to: args.assignedTo,
     assigned_by: args.assignedBy,
-    assigned_by_role: args.assignedByRole,
-    assigned_to_role: args.assignedToRole,
     remarks: args.remarks,
-    note: args.remarks,
-    assigned_at: now,
     created_at: now,
-    created_by: args.assignedBy,
-    closed_at: null,
   });
 
   const { data, error } = await service.from("complaint_assignments").insert(payload as any).select("id").single();
@@ -272,7 +256,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
         await updateComplaintStatus(service, {
           complaintId,
           toStatus: parsed.data.status,
-          previousResolvedAt: complaint.resolved_at ?? null,
         });
       } catch (error) {
         await removeComplaintStatusHistory(service, historyId);
@@ -328,8 +311,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
         complaintId,
         assignedTo: parsed.data.assigned_to,
         assignedBy: session.user.id,
-        assignedByRole: session.profile.role,
-        assignedToRole: targetRole,
         remarks: parsed.data.remarks || null,
       });
 
@@ -345,7 +326,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
         await updateComplaintStatus(service, {
           complaintId,
           toStatus: ComplaintStatus.ASSIGNED,
-          previousResolvedAt: complaint.resolved_at ?? null,
+          assignedUserId: parsed.data.assigned_to,
         });
       } catch (error) {
         await removeComplaintStatusHistory(service, historyId);

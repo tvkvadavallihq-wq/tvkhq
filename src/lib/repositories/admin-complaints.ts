@@ -370,23 +370,15 @@ export async function getAdminComplaintDetail(
   ]);
   const assignmentOrderColumn = assignmentColumns.has("created_at")
     ? "created_at"
-    : assignmentColumns.has("assigned_at")
-      ? "assigned_at"
-      : "id";
+    : "id";
 
   const assignmentSelect = pickSelectColumns(assignmentColumns, [
     "id",
     "complaint_id",
     "assigned_to",
     "assigned_by",
-    "assigned_by_role",
-    "assigned_to_role",
     "remarks",
-    "note",
-    "assigned_at",
     "created_at",
-    "created_by",
-    "closed_at",
   ]).join(",");
   const statusHistorySelect = pickSelectColumns(statusHistoryColumns, [
     "id",
@@ -396,12 +388,6 @@ export async function getAdminComplaintDetail(
     "remarks",
     "updated_by",
     "created_at",
-    "from_status",
-    "to_status",
-    "note",
-    "changed_by",
-    "created_by",
-    "activity_type",
   ]).join(",");
 
   const [{ data: assignments }, { data: statusHistory }, { data: media }] = await Promise.all([
@@ -415,18 +401,16 @@ export async function getAdminComplaintDetail(
     complaint_id: row.complaint_id,
     assigned_to: row.assigned_to,
     assigned_by: row.assigned_by ?? null,
-    assigned_by_role: row.assigned_by_role ?? null,
-    assigned_to_role: row.assigned_to_role ?? null,
     remarks: row.remarks ?? row.note ?? null,
-    created_at: row.created_at ?? row.assigned_at ?? new Date().toISOString(),
+    created_at: row.created_at ?? new Date().toISOString(),
   })) as AdminComplaintAssignmentRow[];
   const statusRows = (statusHistory ?? []).map((row: any) => ({
     id: row.id,
     complaint_id: row.complaint_id,
-    old_status: (row.old_status ?? row.from_status ?? null) as ComplaintStatus | null,
-    new_status: (row.new_status ?? row.to_status ?? null) as ComplaintStatus | null,
-    remarks: row.remarks ?? row.note ?? null,
-    updated_by: row.updated_by ?? row.changed_by ?? row.created_by ?? null,
+    old_status: row.old_status ?? null,
+    new_status: row.new_status ?? null,
+    remarks: row.remarks ?? null,
+    updated_by: row.updated_by ?? null,
     created_at: row.created_at,
   })) as AdminComplaintStatusRow[];
   const mediaRows = (media ?? []) as AdminComplaintMediaRow[];
@@ -478,7 +462,7 @@ export async function getAdminComplaintDetail(
       actor_name: row.assigned_by ? usersById[row.assigned_by]?.full_name ?? null : null,
       actor_role: row.assigned_by ? usersById[row.assigned_by]?.role ?? null : null,
       target_name: usersById[row.assigned_to]?.full_name ?? null,
-      target_role: usersById[row.assigned_to]?.role ?? row.assigned_to_role ?? null,
+      target_role: usersById[row.assigned_to]?.role ?? null,
     })),
     ...hydratedMedia.map((row): AdminComplaintActivity => ({
       id: row.id,
