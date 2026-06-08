@@ -45,7 +45,6 @@ export default async function HomePage({
   };
 
   const [content, filtersData] = await Promise.all([getPublicHomeContent(filters), getHomepageFilters()]);
-  const latestAnnouncement = content.announcements[0] ?? null;
   const banners =
     content.banners.length > 0
       ? [{ id: "tvkhq-banner", title_ta: "TVK Vadavalli HQ", image_path: "/images/tvkhq-banner.png", link_url: "/" }, ...content.banners]
@@ -53,7 +52,7 @@ export default async function HomePage({
 
   return (
     <main>
-      <HeroSection latestAnnouncement={latestAnnouncement} heroBannerSrc="/images/tvkhq-banner.png" ministerPhotoSrc="/images/sampath-hero-hd.jpg" stats={content.stats} />
+      <HeroSection heroBannerSrc="/images/tvkhq-banner.png" stats={content.stats} />
 
       <section className="mx-auto max-w-6xl px-4 py-8">
         <SectionHeading

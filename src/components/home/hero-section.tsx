@@ -1,20 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, BadgeInfo, FilePlus2, MapPin, Search, Sparkles } from "lucide-react";
+import { ArrowRight, BadgeInfo, FilePlus2, Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import type { ReactNode } from "react";
-import type { HomepageAnnouncement, HomepageStats } from "@/lib/repositories/public";
+import type { HomepageStats } from "@/lib/repositories/public";
 
 export function HeroSection({
-  latestAnnouncement,
   heroBannerSrc,
-  ministerPhotoSrc,
   stats,
 }: {
-  latestAnnouncement: HomepageAnnouncement | null;
   heroBannerSrc: string;
-  ministerPhotoSrc: string;
   stats: HomepageStats;
 }) {
   return (
@@ -88,36 +82,6 @@ export function HeroSection({
             </div>
           </div>
 
-          <Card className="overflow-hidden rounded-3xl">
-            <CardContent className="grid gap-4 p-5 sm:grid-cols-[120px_1fr] sm:items-start">
-              <div className="relative aspect-square overflow-hidden rounded-xl border bg-muted">
-                {ministerPhotoSrc ? (
-                  <Image src={ministerPhotoSrc} alt="Minister Sampath Kumar" fill sizes="(max-width: 640px) 100vw, 120px" className="object-cover" />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-primary/10 text-2xl font-black text-primary">
-                    SK
-                  </div>
-                )}
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Minister Profile</p>
-                  <h2 className="text-xl font-black">Minister Sampath Kumar</h2>
-                  <p className="text-sm font-semibold text-muted-foreground">Coimbatore City District Secretary · MLA, Coimbatore North</p>
-                </div>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  {latestAnnouncement?.body_ta ??
-                    "மக்கள் பிரச்சனைகளுக்கு விரைவான தீர்வு, தெளிவான கண்காணிப்பு மற்றும் முழுமையான சேவை."}
-                </p>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <InfoChip icon={<MapPin className="size-3.5" />} label="Constituency" value="Coimbatore North" />
-                  <InfoChip icon={<Sparkles className="size-3.5" />} label="Portfolio" value="BC, MBC & Denotified Welfare" />
-                  <InfoChip icon={<BadgeInfo className="size-3.5" />} label="Posting" value="District Secretary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           <div className="grid gap-3 sm:grid-cols-3">
             <StatPill label="Total" value={stats.total} />
             <StatPill label="Resolved" value={stats.resolved} />
@@ -134,18 +98,6 @@ function StatPill({ label, value }: { label: string; value: number }) {
     <div className="rounded-lg border bg-card p-4">
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
       <p className="mt-2 text-2xl font-black">{value.toLocaleString("en-IN")}</p>
-    </div>
-  );
-}
-
-function InfoChip({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border bg-muted/30 p-3">
-      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-        {icon}
-        {label}
-      </div>
-      <p className="mt-1 text-sm font-semibold leading-5">{value}</p>
     </div>
   );
 }
