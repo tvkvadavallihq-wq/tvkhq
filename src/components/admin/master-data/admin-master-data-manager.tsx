@@ -1,9 +1,9 @@
 "use client";
 
-import { useMutation, type UseMutationResult } from "@tanstack/react-query";
+import { useMutation, useQuery, type UseMutationResult } from "@tanstack/react-query";
 import { Loader2, Plus, RefreshCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
-import type { FormEvent, ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -106,7 +106,7 @@ export function AdminMasterDataManager({
 
       {canManageGlobal ? (
         <>
-          <SectionCard title="பகுதிகள் / POCs" helper="Area points of contact" action={renderPocForm(mutation, data.wards)}>
+      <SectionCard title="பகுதிகள் / POCs" helper="Area points of contact" action={<PocForm mutation={mutation} wards={data.wards} />}>
             <div className="grid gap-2">
               {data.pocs.map((poc) => (
                 <MasterRow
@@ -264,10 +264,40 @@ function renderCategoryForm(mutation: FormMutation) {
   );
 }
 
-function renderPocForm(mutation: FormMutation, wards: AdminMasterData["wards"]) {
+function PocForm({ mutation, wards }: { mutation: FormMutation; wards: AdminMasterData["wards"] }) {
+  const [selectedWardId, setSelectedWardId] = useState("");
+
+  const areasQuery = useQuery({
+    queryKey: ["admin-master-poc-areas", selectedWardId],
+    queryFn: async () => {
+      if (!selectedWardId) {
+        return [] as Array<{ id: string; area_name: string }>;
+      }
+
+      const response = await fetch(`/api/complaints/areas?ward_id=${encodeURIComponent(selectedWardId)}`);
+      const payload = (await response.json()) as { ok: true; areas: Array<{ id: string; area_name: string }> } | { ok: false; error: string };
+
+      if (!response.ok || !("ok" in payload) || !payload.ok) {
+        throw new Error("பகுதி பட்டியலைப் பெற முடியவில்லை.");
+      }
+
+      return payload.areas ?? [];
+    },
+    enabled: Boolean(selectedWardId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const visibleAreas = selectedWardId ? areasQuery.data ?? [] : [];
+
   return (
     <form className="grid gap-3 md:grid-cols-2" onSubmit={(event) => handleSubmit(event, mutation, "create-poc")}>
-      <select name="ward_id" required className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+      <select
+        name="ward_id"
+        required
+        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+        value={selectedWardId}
+        onChange={(event) => setSelectedWardId(event.target.value)}
+      >
         <option value="">வார்டை தேர்வு செய்யவும்</option>
         {wards.map((ward) => (
           <option key={ward.id} value={ward.id}>
@@ -277,7 +307,28 @@ function renderPocForm(mutation: FormMutation, wards: AdminMasterData["wards"]) 
       </select>
       <Input name="name" placeholder="Name" required />
       <Input name="phone" placeholder="Phone" required />
-      <Input name="area_name" placeholder="Area" required />
+      <select
+        name="area_name"
+        required
+        className="h-10 w-full rounded-md border bg-background px-3 text-sm disabled:cursor-not-allowed disabled:bg-muted"
+        disabled={!selectedWardId || areasQuery.isLoading}
+      >
+        <option value="">பகுதியை தேர்வு செய்யவும்</option>
+        {visibleAreas.map((area) => (
+          <option key={area.id} value={area.area_name}>
+            {area.area_name}
+          </option>
+        ))}
+      </select>
+      <div className="md:col-span-2">
+        {!selectedWardId ? (
+          <p className="text-xs text-muted-foreground">முதலில் வார்டை தேர்வு செய்யவும்.</p>
+        ) : areasQuery.isLoading ? (
+          <p className="text-xs text-muted-foreground">பகுதிகள் ஏற்றப்படுகிறது...</p>
+        ) : visibleAreas.length === 0 ? (
+          <p className="text-xs text-muted-foreground">இந்த வார்டுக்கு பகுதி விவரம் இல்லை.</p>
+        ) : null}
+      </div>
       <div className="md:col-span-2">
         <Button type="submit" disabled={mutation.isPending}>
           {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
