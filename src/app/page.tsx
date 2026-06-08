@@ -77,7 +77,7 @@ export default async function HomePage({
       </section>
 
       <AnnouncementsSection announcements={content.announcements} banners={banners} />
-      <HomeFooter contacts={content.wardContacts} banners={banners} />
+      <HomeFooter banners={banners} />
     </main>
   );
 }

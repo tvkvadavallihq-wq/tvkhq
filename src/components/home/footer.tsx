@@ -1,15 +1,13 @@
 import { Facebook, Instagram, MessageSquareMore, PhoneCall, Twitter } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import type { HomepageBanner, HomepageWardContact } from "@/lib/repositories/public";
+import { OFFICE_CONTACT } from "@/lib/constants";
+import type { HomepageBanner } from "@/lib/repositories/public";
 
 export function HomeFooter({
-  contacts,
   banners,
 }: {
-  contacts: HomepageWardContact[];
   banners: HomepageBanner[];
 }) {
-  const primaryContact = contacts[0] ?? null;
   const socialLinks = banners.filter((banner) => Boolean(banner.link_url && /^https?:\/\//i.test(banner.link_url))).slice(0, 4);
 
   return (
@@ -19,20 +17,21 @@ export function HomeFooter({
           <CardContent className="grid gap-5 p-5 md:grid-cols-2">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">தொடர்பு தகவல்</p>
-              <h2 className="mt-2 text-xl font-black">TVK Vadavalli HQ</h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                மக்கள் தொடர்பு மற்றும் புகார் ஒருங்கிணைப்புக்கான முக்கிய அலுவலக தகவல்கள்.
-              </p>
-              {primaryContact ? (
-                <div className="mt-4 space-y-2 text-sm">
-                  <p className="font-bold">{primaryContact.name}</p>
-                  <p className="text-muted-foreground">{primaryContact.designation_ta}</p>
-                  <a href={`tel:${primaryContact.phone}`} className="inline-flex items-center gap-2 font-bold text-primary">
-                    <PhoneCall className="size-4" />
-                    {primaryContact.phone}
-                  </a>
-                </div>
-              ) : null}
+              <h2 className="mt-2 text-xl font-black">{OFFICE_CONTACT.name}</h2>
+              <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
+                {OFFICE_CONTACT.addressLines.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+                <p>போன் : {OFFICE_CONTACT.phone}</p>
+                <a href={`mailto:${OFFICE_CONTACT.email}`} className="inline-flex items-center gap-2 font-semibold text-primary">
+                  மின் அஞ்சல் : {OFFICE_CONTACT.email}
+                </a>
+                <p>நேரம்: {OFFICE_CONTACT.hours}</p>
+                <a href={`tel:${OFFICE_CONTACT.phone.replace(/\s+/g, "")}`} className="inline-flex items-center gap-2 font-bold text-primary">
+                  <PhoneCall className="size-4" />
+                  {OFFICE_CONTACT.phone}
+                </a>
+              </div>
             </div>
 
             <div className="space-y-3">
