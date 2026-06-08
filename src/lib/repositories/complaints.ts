@@ -191,7 +191,7 @@ async function loadComplaintByNumber(trackingId: string, phone?: string): Promis
 
   const assignedUserId = assignmentResult.data?.assigned_to ?? null;
   const assignedUserResult = assignedUserId
-    ? await supabase.from("users").select("id,full_name,phone,role").eq("id", assignedUserId).maybeSingle()
+    ? await supabase.from("users").select("id,name,mobile,role").eq("id", assignedUserId).maybeSingle()
     : { data: null, error: null };
 
   if (assignedUserResult.error) {
@@ -222,7 +222,14 @@ async function loadComplaintByNumber(trackingId: string, phone?: string): Promis
           id: assignmentResult.data.id,
           note: assignmentResult.data.remarks ?? assignmentResult.data.note ?? null,
           assigned_at: assignmentResult.data.created_at ?? assignmentResult.data.assigned_at,
-          assigned_to: assignedUserResult.data,
+          assigned_to: assignedUserResult.data
+            ? {
+                id: assignedUserResult.data.id,
+                full_name: assignedUserResult.data.name ?? "",
+                phone: assignedUserResult.data.mobile ?? null,
+                role: assignedUserResult.data.role,
+              }
+            : null,
         }
       : null,
     history: (historyResult.data ?? []).map((item: any) => ({

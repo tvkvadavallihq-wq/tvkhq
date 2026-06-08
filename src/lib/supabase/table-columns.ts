@@ -1,34 +1,97 @@
-type SupabaseTableClient = any;
+type TableColumnMap = Record<string, Set<string>>;
 
-const columnCache = new Map<string, Promise<Set<string>>>();
+const columnMap: TableColumnMap = {
+  wards: new Set([
+    "id",
+    "ward_number",
+    "ward_name",
+    "assembly_constituency",
+    "city",
+    "district",
+    "secretary_name",
+    "secretary_mobile",
+    "secretary_whatsapp",
+    "created_at",
+    "updated_at",
+    "is_active",
+    "number",
+    "name_ta",
+    "name_en",
+  ]),
+  area_pocs: new Set(["id", "ward_id", "name", "mobile", "whatsapp", "area_name", "is_active", "created_at", "updated_at"]),
+  complaint_categories: new Set(["id", "name_ta", "name_en", "icon", "is_active", "created_at"]),
+  complaints: new Set([
+    "id",
+    "complaint_number",
+    "citizen_name",
+    "mobile",
+    "ward_id",
+    "category_id",
+    "title",
+    "description",
+    "latitude",
+    "longitude",
+    "address",
+    "current_status",
+    "assigned_user_id",
+    "priority",
+    "is_public",
+    "created_at",
+    "updated_at",
+    "resolved_at",
+    "created_by",
+  ]),
+  complaint_media: new Set(["id", "complaint_id", "media_type", "file_url", "uploaded_by", "created_at"]),
+  complaint_status_history: new Set(["id", "complaint_id", "old_status", "new_status", "remarks", "updated_by", "created_at"]),
+  complaint_assignments: new Set([
+    "id",
+    "complaint_id",
+    "assigned_by",
+    "assigned_to",
+    "remarks",
+    "created_at",
+    "assigned_by_role",
+    "assigned_to_role",
+    "note",
+    "assigned_at",
+    "closed_at",
+    "created_by",
+  ]),
+  users: new Set([
+    "id",
+    "name",
+    "mobile",
+    "username",
+    "password_hash",
+    "role",
+    "ward_id",
+    "is_active",
+    "created_at",
+    "updated_at",
+    "full_name",
+    "phone",
+  ]),
+  announcements: new Set(["id", "title", "content", "image_url", "created_by", "created_at"]),
+  banners: new Set(["id", "title", "image_url", "redirect_url", "display_order", "is_active", "created_at"]),
+  ward_contacts: new Set([
+    "id",
+    "ward_id",
+    "designation",
+    "name",
+    "mobile",
+    "whatsapp",
+    "address",
+    "photo_url",
+    "display_order",
+    "is_active",
+    "created_at",
+  ]),
+};
 
-export async function getPublicTableColumns(client: SupabaseTableClient, tableName: string): Promise<Set<string>> {
-  if (!columnCache.has(tableName)) {
-    columnCache.set(
-      tableName,
-      (async () => {
-        try {
-          const { data, error } = await client
-            .schema("information_schema")
-            .from("columns")
-            .select("column_name")
-            .eq("table_schema", "public")
-            .eq("table_name", tableName);
+const emptyColumns = new Set<string>();
 
-          if (error) {
-            throw new Error(error.message);
-          }
-
-          return new Set((data ?? []).map((row: { column_name: string }) => row.column_name));
-        } catch (error) {
-          columnCache.delete(tableName);
-          throw error;
-        }
-      })(),
-    );
-  }
-
-  return columnCache.get(tableName)!;
+export async function getPublicTableColumns(_client: unknown, tableName: string): Promise<Set<string>> {
+  return columnMap[tableName] ?? emptyColumns;
 }
 
 export function pickInsertPayload<T extends Record<string, unknown>>(columns: Set<string>, payload: T) {

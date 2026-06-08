@@ -217,7 +217,7 @@ async function getUsersMap(client: SupabaseClient, ids: string[]) {
 
   const { data } = await client
     .from("users")
-    .select("id,full_name,phone,role,ward_id,wards(*)")
+    .select("id,name,mobile,role,ward_id,wards(*)")
     .in("id", uniqueIds);
 
   const map: Record<string, AdminComplaintUser> = {};
@@ -226,8 +226,8 @@ async function getUsersMap(client: SupabaseClient, ids: string[]) {
     const wardRelation = Array.isArray(user.wards) ? user.wards[0] ?? null : user.wards ?? null;
     map[user.id] = {
       id: user.id,
-      full_name: user.full_name,
-      phone: user.phone ?? null,
+      full_name: user.name ?? user.full_name ?? "",
+      phone: user.mobile ?? user.phone ?? null,
       role: user.role,
       ward_id: user.ward_id ?? null,
       ward_number: getWardNumber(wardRelation) ?? null,
@@ -549,15 +549,15 @@ export async function getAdminComplaintActionConfig(
       ? []
       : (await client
           .from("users")
-          .select("id,full_name,phone,role,ward_id,wards(*)")
+          .select("id,name,mobile,role,ward_id,wards(*)")
           .eq("is_active", true)
         .eq("role", targetRole)
-        .order("full_name")).data?.map((user: any) => {
+        .order("name")).data?.map((user: any) => {
           const wardRelation = Array.isArray(user.wards) ? user.wards[0] ?? null : user.wards ?? null;
           return {
             id: user.id,
-            full_name: user.full_name,
-            phone: user.phone ?? null,
+            full_name: user.name ?? user.full_name ?? "",
+            phone: user.mobile ?? user.phone ?? null,
             role: user.role,
             ward_id: user.ward_id ?? null,
             ward_number: getWardNumber(wardRelation) ?? null,
