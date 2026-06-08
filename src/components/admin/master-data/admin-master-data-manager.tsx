@@ -3,15 +3,17 @@
 import { useMutation, useQuery, type UseMutationResult } from "@tanstack/react-query";
 import { Loader2, Plus, RefreshCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { UserRole, userRoleTamil } from "@/lib/enums";
 import type { AdminMasterData, MasterActionType } from "@/lib/repositories/admin-master";
+import { cn } from "@/lib/utils";
 
 type FormMutation = UseMutationResult<string, Error, { action: MasterActionType; formData: FormData }>;
+type MasterTabKey = "users" | "wards" | "categories" | "pocs" | "announcements" | "banners";
 
 function submitAction(action: MasterActionType, formData: FormData) {
   formData.set("action", action);
@@ -26,6 +28,7 @@ export function AdminMasterDataManager({
   canManageGlobal: boolean;
 }) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<MasterTabKey>(canManageGlobal ? "users" : "pocs");
   const mutation = useMutation({
     mutationFn: async ({ action, formData }: { action: MasterActionType; formData: FormData }) => {
       const response = await fetch("/api/admin/masters", {
@@ -46,15 +49,48 @@ export function AdminMasterDataManager({
     },
   });
 
+  const tabs = useMemo(
+    () =>
+      [
+        canManageGlobal ? { key: "users" as const, label: "பயனர்கள்" } : null,
+        canManageGlobal ? { key: "wards" as const, label: "வார்டுகள்" } : null,
+        canManageGlobal ? { key: "categories" as const, label: "வகைகள்" } : null,
+        { key: "pocs" as const, label: "பகுதிகள் / POCs" },
+        canManageGlobal ? { key: "announcements" as const, label: "அறிவிப்புகள்" } : null,
+        canManageGlobal ? { key: "banners" as const, label: "பேனர்கள்" } : null,
+      ].filter(Boolean) as Array<{ key: MasterTabKey; label: string }>,
+    [canManageGlobal],
+  );
+
+  const currentTab = tabs.find((tab) => tab.key === activeTab) ?? tabs[0];
+
   return (
     <div className="space-y-5">
-      {canManageGlobal ? (
-        <SectionCard title="நிர்வாக பயனர்கள்" helper="Local username + password hash in public.users" action={renderUserForm(mutation, data.wards)}>
+      <div className="rounded-xl border bg-card p-2">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                "rounded-lg border px-3 py-2 text-sm font-semibold transition",
+                activeTab === tab.key ? "border-primary bg-primary text-primary-foreground shadow-sm" : "bg-background text-foreground hover:bg-muted",
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {currentTab?.key === "users" && canManageGlobal ? (
+        <TabPanel title="நிர்வாக பயனர்கள்" helper="Local username + password hash in public.users" action={renderUserForm(mutation, data.wards)}>
           <div className="space-y-3">
             {data.users.map((user) => (
               <MasterRow
                 key={user.id}
-                title={user.full_name}
+                title={user.name}
                 meta={[
                   user.username ?? "username missing",
                   userRoleTamil[user.role],
@@ -71,143 +107,125 @@ export function AdminMasterDataManager({
             ))}
             {data.users.length === 0 ? <p className="text-sm text-muted-foreground">பயனர்கள் இல்லை.</p> : null}
           </div>
-        </SectionCard>
+        </TabPanel>
       ) : null}
 
-      <SectionCard title="வார்டுகள்" helper="Ward master data" action={canManageGlobal ? renderWardForm(mutation) : null}>
-        <div className="grid gap-2">
-          {data.wards.map((ward) => (
-            <MasterRow
-              key={ward.id}
-              title={`வார்டு ${ward.ward_number}`}
-              meta={[ward.name_ta, ward.name_en ?? null].filter(Boolean).join(" · ")}
-              active={ward.is_active}
-              canToggle={canManageGlobal}
-              onToggle={() => mutateToggle(mutation, "toggle-ward", ward.id, ward.is_active)}
-            />
-          ))}
-        </div>
-      </SectionCard>
+      {currentTab?.key === "wards" && canManageGlobal ? (
+        <TabPanel title="வார்டுகள்" helper="Ward master data" action={renderWardForm(mutation)}>
+          <div className="grid gap-2">
+            {data.wards.map((ward) => (
+              <MasterRow
+                key={ward.id}
+                title={`வார்டு ${ward.ward_number}`}
+                meta={[
+                  ward.ward_name,
+                  ward.assembly_constituency,
+                  ward.city,
+                  ward.district,
+                  ward.secretary_name ? `Secretary: ${ward.secretary_name}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+                active={ward.is_active}
+                canToggle={canManageGlobal}
+                onToggle={() => mutateToggle(mutation, "toggle-ward", ward.id, ward.is_active)}
+              />
+            ))}
+          </div>
+        </TabPanel>
+      ) : null}
 
-      <SectionCard title="வகைகள்" helper="Complaint taxonomy" action={canManageGlobal ? renderCategoryForm(mutation) : null}>
-        <div className="grid gap-2">
-          {data.categories.map((category) => (
-            <MasterRow
-              key={category.id}
-              title={category.name_ta}
-              meta={category.slug}
-              active={category.is_active}
-              canToggle={canManageGlobal}
-              onToggle={() => mutateToggle(mutation, "toggle-category", category.id, category.is_active)}
-            />
-          ))}
-        </div>
-      </SectionCard>
+      {currentTab?.key === "categories" && canManageGlobal ? (
+        <TabPanel title="வகைகள்" helper="Complaint taxonomy" action={renderCategoryForm(mutation)}>
+          <div className="grid gap-2">
+            {data.categories.map((category) => (
+              <MasterRow
+                key={category.id}
+                title={category.name_ta}
+                meta={[category.name_en, category.icon].filter(Boolean).join(" · ")}
+                active={category.is_active}
+                canToggle={canManageGlobal}
+                onToggle={() => mutateToggle(mutation, "toggle-category", category.id, category.is_active)}
+              />
+            ))}
+          </div>
+        </TabPanel>
+      ) : null}
 
-      {canManageGlobal ? (
-        <>
-      <SectionCard title="பகுதிகள் / POCs" helper="Area points of contact" action={<PocForm mutation={mutation} wards={data.wards} />}>
-            <div className="grid gap-2">
-              {data.pocs.map((poc) => (
-                <MasterRow
-                  key={poc.id}
-                  title={poc.name}
-                  meta={`${poc.area_name}${poc.ward_number ? ` · Ward ${poc.ward_number}` : ""} · ${poc.phone}`}
-                  active={poc.is_active}
-                  canToggle
-                  onToggle={() => mutateToggle(mutation, "toggle-poc", poc.id, poc.is_active)}
-                />
-              ))}
-            </div>
-          </SectionCard>
+      {currentTab?.key === "pocs" ? (
+        <TabPanel title="பகுதிகள் / POCs" helper="Area points of contact" action={canManageGlobal ? <PocForm mutation={mutation} wards={data.wards} /> : null}>
+          <div className="grid gap-2">
+            {data.pocs.map((poc) => (
+              <MasterRow
+                key={poc.id}
+                title={poc.name}
+                meta={`${poc.area_name}${poc.ward_number ? ` · Ward ${poc.ward_number}` : ""} · ${poc.mobile}${poc.whatsapp ? ` · WhatsApp ${poc.whatsapp}` : ""}`}
+                active={poc.is_active}
+                canToggle={canManageGlobal}
+                onToggle={() => mutateToggle(mutation, "toggle-poc", poc.id, poc.is_active)}
+              />
+            ))}
+          </div>
+          {!canManageGlobal ? <p className="text-sm text-muted-foreground">உங்கள் வார்டுக்கான POC-களை மட்டும் இங்கே காணலாம்.</p> : null}
+        </TabPanel>
+      ) : null}
 
-          <SectionCard title="அறிவிப்புகள்" helper="Public updates" action={renderAnnouncementForm(mutation)}>
-            <div className="grid gap-2">
-              {data.announcements.map((announcement) => (
-                <MasterRow
-                  key={announcement.id}
-                  title={announcement.title_ta}
-                  meta={announcement.published_at ?? announcement.created_at}
-                  active={announcement.is_active}
-                  canToggle
-                  onToggle={() => mutateToggle(mutation, "toggle-announcement", announcement.id, announcement.is_active)}
-                />
-              ))}
-            </div>
-          </SectionCard>
+      {currentTab?.key === "announcements" && canManageGlobal ? (
+        <TabPanel title="அறிவிப்புகள்" helper="Public updates" action={renderAnnouncementForm(mutation)}>
+          <div className="grid gap-2">
+            {data.announcements.map((announcement) => (
+              <MasterRow
+                key={announcement.id}
+                title={announcement.title}
+                meta={[
+                  announcement.content.slice(0, 80),
+                  announcement.image_url ?? null,
+                  announcement.created_by ? `By ${announcement.created_by.slice(0, 8)}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+                active={true}
+                canToggle={false}
+              />
+            ))}
+          </div>
+        </TabPanel>
+      ) : null}
 
-          <SectionCard title="பேனர்கள்" helper="Homepage banners" action={renderBannerForm(mutation)}>
-            <div className="grid gap-2">
-              {data.banners.map((banner) => (
-                <MasterRow
-                  key={banner.id}
-                  title={banner.title_ta}
-                  meta={banner.link_url ?? banner.image_path ?? "Banner"}
-                  active={banner.is_active}
-                  canToggle
-                  onToggle={() => mutateToggle(mutation, "toggle-banner", banner.id, banner.is_active)}
-                />
-              ))}
-            </div>
-          </SectionCard>
-        </>
-      ) : (
+      {currentTab?.key === "banners" && canManageGlobal ? (
+        <TabPanel title="பேனர்கள்" helper="Homepage banners" action={renderBannerForm(mutation)}>
+          <div className="grid gap-2">
+            {data.banners.map((banner) => (
+              <MasterRow
+                key={banner.id}
+                title={banner.title}
+                meta={[banner.redirect_url ?? null, banner.image_url ?? null, banner.display_order != null ? `Order ${banner.display_order}` : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+                active={banner.is_active}
+                canToggle
+                onToggle={() => mutateToggle(mutation, "toggle-banner", banner.id, banner.is_active)}
+              />
+            ))}
+          </div>
+        </TabPanel>
+      ) : null}
+
+      {!canManageGlobal ? (
         <Card>
           <CardHeader>
-            <CardTitle>உலகளாவிய அமைப்புகள்</CardTitle>
+            <CardTitle>உள்ளக அணுகல்</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">வகைகள், POC, அறிவிப்புகள் மற்றும் பேனர்களை நிர்வகிக்க SUPER_ADMIN அனுமதி தேவை.</p>
+            <p className="text-sm text-muted-foreground">வார்டு சார்ந்த POC பார்வை மட்டுமே கிடைக்கும். வார்டுகள், வகைகள், பயனர்கள், அறிவிப்புகள், பேனர்கள் ஆகியவற்றிற்கு SUPER_ADMIN தேவை.</p>
           </CardContent>
         </Card>
-      )}
+      ) : null}
     </div>
   );
 }
 
-function renderUserForm(mutation: FormMutation, wards: AdminMasterData["wards"]) {
-  return (
-    <form className="grid gap-3 md:grid-cols-2" onSubmit={(event) => handleSubmit(event, mutation, "create-user")}>
-      <Input name="username" placeholder="Username" required />
-      <Input name="password" type="password" placeholder="Password" required />
-      <Input name="full_name" placeholder="Full name" required />
-      <Input name="phone" placeholder="Mobile number" />
-      <select name="role" required className="h-10 w-full rounded-md border bg-background px-3 text-sm">
-        <option value="">Role</option>
-        {Object.values(UserRole).map((role) => (
-          <option key={role} value={role}>
-            {userRoleTamil[role]}
-          </option>
-        ))}
-      </select>
-      <select name="ward_id" className="h-10 w-full rounded-md border bg-background px-3 text-sm">
-        <option value="">Ward (optional for SUPER_ADMIN)</option>
-        {wards.map((ward) => (
-          <option key={ward.id} value={ward.id}>
-            Ward {ward.ward_number}
-          </option>
-        ))}
-      </select>
-      <select name="is_active" className="h-10 w-full rounded-md border bg-background px-3 text-sm md:col-span-2">
-        <option value="true">Active</option>
-        <option value="false">Inactive</option>
-      </select>
-      <div className="md:col-span-2">
-        <p className="text-xs leading-5 text-muted-foreground">
-          Username + password hash public.users-இல் சேமிக்கப்படும். இதுவே admin login-க்கு பயன்படும்.
-        </p>
-      </div>
-      <div className="md:col-span-2">
-        <Button type="submit" disabled={mutation.isPending}>
-          {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-          பயனரைச் சேர்க்கவும்
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-function SectionCard({
+function TabPanel({
   title,
   helper,
   action,
@@ -232,13 +250,58 @@ function SectionCard({
   );
 }
 
+function renderUserForm(mutation: FormMutation, wards: AdminMasterData["wards"]) {
+  return (
+    <form className="grid gap-3 md:grid-cols-2" onSubmit={(event) => handleSubmit(event, mutation, "create-user")}>
+      <Input name="username" placeholder="Username" required />
+      <Input name="password" type="password" placeholder="Password" required />
+      <Input name="name" placeholder="Full name" required />
+      <Input name="mobile" placeholder="Mobile number" />
+      <select name="role" required className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+        <option value="">Role</option>
+        {Object.values(UserRole).map((role) => (
+          <option key={role} value={role}>
+            {userRoleTamil[role]}
+          </option>
+        ))}
+      </select>
+      <select name="ward_id" className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+        <option value="">Ward (optional for SUPER_ADMIN)</option>
+        {wards.map((ward) => (
+          <option key={ward.id} value={ward.id}>
+            Ward {ward.ward_number}
+          </option>
+        ))}
+      </select>
+      <select name="is_active" className="h-10 w-full rounded-md border bg-background px-3 text-sm md:col-span-2">
+        <option value="true">Active</option>
+        <option value="false">Inactive</option>
+      </select>
+      <div className="md:col-span-2">
+        <p className="text-xs leading-5 text-muted-foreground">Username + password hash public.users-இல் சேமிக்கப்படும். இதுவே admin login-க்கு பயன்படும்.</p>
+      </div>
+      <div className="md:col-span-2">
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          பயனரைச் சேர்க்கவும்
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function renderWardForm(mutation: FormMutation) {
   return (
-    <form className="grid gap-3 md:grid-cols-3" onSubmit={(event) => handleSubmit(event, mutation, "create-ward")}>
+    <form className="grid gap-3 md:grid-cols-2" onSubmit={(event) => handleSubmit(event, mutation, "create-ward")}>
       <Input name="ward_number" type="number" min={1} placeholder="Ward No" required />
-      <Input name="name_ta" placeholder="Ward name in Tamil" required />
-      <Input name="name_en" placeholder="Ward name in English" />
-      <div className="md:col-span-3">
+      <Input name="ward_name" placeholder="Ward name" />
+      <Input name="assembly_constituency" placeholder="Assembly constituency" />
+      <Input name="city" placeholder="City" />
+      <Input name="district" placeholder="District" />
+      <Input name="secretary_name" placeholder="Secretary name" />
+      <Input name="secretary_mobile" placeholder="Secretary mobile" />
+      <Input name="secretary_whatsapp" placeholder="Secretary WhatsApp" />
+      <div className="md:col-span-2">
         <Button type="submit" disabled={mutation.isPending}>
           {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
           சேர்க்கவும்
@@ -253,7 +316,7 @@ function renderCategoryForm(mutation: FormMutation) {
     <form className="grid gap-3 md:grid-cols-3" onSubmit={(event) => handleSubmit(event, mutation, "create-category")}>
       <Input name="name_ta" placeholder="வகை பெயர்" required />
       <Input name="name_en" placeholder="English name" />
-      <Input name="slug" placeholder="slug" required />
+      <Input name="icon" placeholder="Icon / Emoji" />
       <div className="md:col-span-3">
         <Button type="submit" disabled={mutation.isPending}>
           {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
@@ -305,12 +368,13 @@ function PocForm({ mutation, wards }: { mutation: FormMutation; wards: AdminMast
           </option>
         ))}
       </select>
-      <Input name="name" placeholder="Name" required />
-      <Input name="phone" placeholder="Phone" required />
+      <Input name="name" placeholder="POC name" required />
+      <Input name="mobile" placeholder="Mobile" required />
+      <Input name="whatsapp" placeholder="WhatsApp" />
       <select
         name="area_name"
         required
-        className="h-10 w-full rounded-md border bg-background px-3 text-sm disabled:cursor-not-allowed disabled:bg-muted"
+        className="h-10 w-full rounded-md border bg-background px-3 text-sm disabled:cursor-not-allowed disabled:bg-muted md:col-span-2"
         disabled={!selectedWardId || areasQuery.isLoading}
       >
         <option value="">பகுதியை தேர்வு செய்யவும்</option>
@@ -342,8 +406,9 @@ function PocForm({ mutation, wards }: { mutation: FormMutation; wards: AdminMast
 function renderAnnouncementForm(mutation: FormMutation) {
   return (
     <form className="grid gap-3" onSubmit={(event) => handleSubmit(event, mutation, "create-announcement")}>
-      <Input name="title_ta" placeholder="Title" required />
-      <Textarea name="body_ta" placeholder="Body" required />
+      <Input name="title" placeholder="Title" required />
+      <Textarea name="content" placeholder="Content" required />
+      <Input name="image_url" placeholder="Image URL (optional)" />
       <Button type="submit" disabled={mutation.isPending}>
         {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
         சேர்க்கவும்
@@ -355,9 +420,10 @@ function renderAnnouncementForm(mutation: FormMutation) {
 function renderBannerForm(mutation: FormMutation) {
   return (
     <form className="grid gap-3 md:grid-cols-2" onSubmit={(event) => handleSubmit(event, mutation, "create-banner")}>
-      <Input name="title_ta" placeholder="Title" required />
-      <Input name="image_path" placeholder="Image path" />
-      <Input name="link_url" placeholder="Link URL" />
+      <Input name="title" placeholder="Title" required />
+      <Input name="image_url" placeholder="Image URL" />
+      <Input name="redirect_url" placeholder="Redirect URL" />
+      <Input name="display_order" type="number" min={0} placeholder="Display order" />
       <div className="md:col-span-2">
         <Button type="submit" disabled={mutation.isPending}>
           {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
@@ -393,7 +459,7 @@ function MasterRow({
   meta: string;
   active: boolean;
   canToggle: boolean;
-  onToggle: () => void;
+  onToggle?: () => void;
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-lg border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -405,7 +471,7 @@ function MasterRow({
         <span className={active ? "text-sm font-semibold text-emerald-700" : "text-sm font-semibold text-muted-foreground"}>
           {active ? "Active" : "Inactive"}
         </span>
-        {canToggle ? (
+        {canToggle && onToggle ? (
           <Button type="button" variant="outline" size="sm" onClick={onToggle}>
             <RefreshCcw className="size-4" />
             Toggle

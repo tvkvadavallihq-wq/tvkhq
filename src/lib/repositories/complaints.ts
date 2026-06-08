@@ -1,6 +1,7 @@
 import { isSupabaseConfigured } from "@/lib/env";
 import { ComplaintStatus } from "@/lib/enums";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { getPublicTableColumns, pickSelectColumns } from "@/lib/supabase/table-columns";
 import { getWardNumber } from "@/lib/ward-utils";
 
 export type ComplaintFilterOptions = {
@@ -146,13 +147,34 @@ async function loadComplaintByNumber(trackingId: string, phone?: string): Promis
   }
 
   const [assignmentResult, historyResult, mediaResult] = await Promise.all([
-    supabase
-      .from("complaint_assignments")
-      .select("id,assigned_to,remarks,created_at")
-      .eq("complaint_id", complaint.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+    (async () => {
+      const assignmentColumns = await getPublicTableColumns(supabase, "complaint_assignments");
+      const assignmentOrderColumn = assignmentColumns.has("created_at")
+        ? "created_at"
+        : assignmentColumns.has("assigned_at")
+          ? "assigned_at"
+          : "id";
+      const selectColumns = pickSelectColumns(assignmentColumns, [
+        "id",
+        "complaint_id",
+        "assigned_to",
+        "assigned_by",
+        "assigned_by_role",
+        "assigned_to_role",
+        "remarks",
+        "note",
+        "created_at",
+        "assigned_at",
+      ]).join(",");
+
+      return supabase
+        .from("complaint_assignments")
+        .select(selectColumns)
+        .eq("complaint_id", complaint.id)
+        .order(assignmentOrderColumn, { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    })(),
     supabase.from("complaint_status_history").select("id,remarks,created_at").eq("complaint_id", complaint.id).order("created_at"),
     supabase.from("complaint_media").select("id,file_url,media_type,created_at").eq("complaint_id", complaint.id).order("created_at"),
   ]);
@@ -198,8 +220,8 @@ async function loadComplaintByNumber(trackingId: string, phone?: string): Promis
     assignment: assignmentResult.data
       ? {
           id: assignmentResult.data.id,
-          note: assignmentResult.data.remarks,
-          assigned_at: assignmentResult.data.created_at,
+          note: assignmentResult.data.remarks ?? assignmentResult.data.note ?? null,
+          assigned_at: assignmentResult.data.created_at ?? assignmentResult.data.assigned_at,
           assigned_to: assignedUserResult.data,
         }
       : null,

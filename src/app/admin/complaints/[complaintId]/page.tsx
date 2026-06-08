@@ -141,10 +141,9 @@ export default async function AdminComplaintDetailPage({
                   .map((entry) => (
                     <div key={entry.id} className="rounded-lg border bg-background p-4">
                       <p className="text-sm font-bold">
-                        {entry.from_status ?? "—"} → {entry.to_status ?? "—"}
+                        {entry.old_status ?? "—"} → {entry.new_status ?? "—"}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(entry.created_at)}</p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">{entry.activity_type}</p>
                       {entry.remarks ? <p className="mt-2 text-sm leading-6">{entry.remarks}</p> : null}
                     </div>
                   ))

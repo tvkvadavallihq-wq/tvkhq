@@ -31,8 +31,8 @@ export function AnnouncementsSection({
                       <Megaphone className="size-3.5" />
                       புதுப்பிப்பு
                     </div>
-                    <h3 className="mt-2 text-base font-black">{announcement.title_ta}</h3>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{announcement.body_ta}</p>
+                    <h3 className="mt-2 text-base font-black">{announcement.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{announcement.content}</p>
                   </article>
                 ))
               )}

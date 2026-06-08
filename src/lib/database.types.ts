@@ -70,14 +70,40 @@ export interface Database {
         Relationships: [];
       };
       complaint_status_history: {
-        Row: { id: string; complaint_id: string; from_status: ComplaintStatus | null; to_status: ComplaintStatus; note: string | null; changed_by: string | null; created_at: string };
-        Insert: { id?: string; complaint_id: string; from_status?: ComplaintStatus | null; to_status: ComplaintStatus; note?: string | null; changed_by?: string | null; created_at?: string };
+        Row: { id: string; complaint_id: string | null; old_status: ComplaintStatus | null; new_status: ComplaintStatus | null; remarks: string | null; updated_by: string | null; created_at: string | null };
+        Insert: { id?: string; complaint_id?: string | null; old_status?: ComplaintStatus | null; new_status: ComplaintStatus; remarks?: string | null; updated_by?: string | null; created_at?: string | null };
         Update: Partial<Database["public"]["Tables"]["complaint_status_history"]["Insert"]>;
         Relationships: [];
       };
       complaint_assignments: {
-        Row: { id: string; complaint_id: string; assigned_to: string; assigned_by: string | null; note: string | null; assigned_at: string; closed_at: string | null };
-        Insert: { id?: string; complaint_id: string; assigned_to: string; assigned_by?: string | null; note?: string | null; assigned_at?: string; closed_at?: string | null };
+        Row: {
+          id: string;
+          complaint_id: string;
+          assigned_to: string;
+          assigned_by: string | null;
+          assigned_by_role: UserRole | null;
+          assigned_to_role: UserRole | null;
+          remarks: string | null;
+          note: string | null;
+          assigned_at: string | null;
+          created_at: string | null;
+          created_by: string | null;
+          closed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          complaint_id: string;
+          assigned_to: string;
+          assigned_by?: string | null;
+          assigned_by_role?: UserRole | null;
+          assigned_to_role?: UserRole | null;
+          remarks?: string | null;
+          note?: string | null;
+          assigned_at?: string | null;
+          created_at?: string | null;
+          created_by?: string | null;
+          closed_at?: string | null;
+        };
         Update: Partial<Database["public"]["Tables"]["complaint_assignments"]["Insert"]>;
         Relationships: [];
       };

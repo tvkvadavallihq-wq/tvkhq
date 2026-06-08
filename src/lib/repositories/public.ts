@@ -10,16 +10,18 @@ export type HomepageSearchParams = {
 
 export type HomepageBanner = {
   id: string;
-  title_ta: string;
-  image_path: string | null;
-  link_url: string | null;
+  title: string;
+  image_url: string | null;
+  redirect_url: string | null;
+  display_order: number | null;
 };
 
 export type HomepageAnnouncement = {
   id: string;
-  title_ta: string;
-  body_ta: string;
-  published_at: string | null;
+  title: string;
+  content: string;
+  image_url: string | null;
+  created_at: string;
 };
 
 export type HomepageWardContact = {
@@ -83,11 +85,10 @@ export async function getPublicHomeContent(searchParams: HomepageSearchParams = 
   const normalizedWard = searchParams.ward?.trim();
 
   const [bannersResult, announcementsResult, contactsResult, wardsResult, totalResult, resolvedResult, pendingResult] = await Promise.all([
-    supabase.from("banners").select("id,title_ta,image_path,link_url").order("created_at", { ascending: false }).limit(5),
+    supabase.from("banners").select("id,title,image_url,redirect_url,display_order").order("display_order", { ascending: true }).limit(5),
     supabase
       .from("announcements")
-      .select("id,title_ta,body_ta,published_at")
-      .order("published_at", { ascending: false })
+      .select("id,title,content,image_url,created_at")
       .order("created_at", { ascending: false })
       .limit(6),
     supabase.from("ward_contacts").select("id,name,designation_ta,phone,whatsapp,address,ward_id").order("created_at", { ascending: false }),

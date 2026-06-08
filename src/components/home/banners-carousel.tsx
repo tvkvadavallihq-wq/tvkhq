@@ -18,11 +18,11 @@ export function BannersCarousel({ banners }: { banners: HomepageBanner[] }) {
     <div className="overflow-hidden rounded-3xl border bg-card shadow-sm">
       <div className="relative">
         <div className="relative aspect-[16/9] min-h-[260px] overflow-hidden bg-gradient-to-br from-amber-50 via-background to-stone-100 sm:min-h-[340px]">
-          {active.image_path ? (
-            <Image src={active.image_path} alt={active.title_ta} fill sizes="(max-width: 1024px) 100vw, 55vw" className="object-contain p-2 sm:p-4" />
+          {active.image_url ? (
+            <Image src={active.image_url} alt={active.title} fill sizes="(max-width: 1024px) 100vw, 55vw" className="object-contain p-2 sm:p-4" />
           ) : (
             <div className="flex h-full w-full items-center justify-center px-6 text-center text-lg font-bold text-primary">
-              {active.title_ta}
+              {active.title}
             </div>
           )}
         </div>

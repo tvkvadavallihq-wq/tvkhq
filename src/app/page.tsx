@@ -47,8 +47,8 @@ export default async function HomePage({
   const [content, filtersData] = await Promise.all([getPublicHomeContent(filters), getHomepageFilters()]);
   const banners =
     content.banners.length > 0
-      ? [{ id: "tvkhq-banner", title_ta: "TVK Vadavalli HQ", image_path: "/images/tvkhq-banner.png", link_url: "/" }, ...content.banners]
-      : [{ id: "tvkhq-banner", title_ta: "TVK Vadavalli HQ", image_path: "/images/tvkhq-banner.png", link_url: "/" }];
+      ? [{ id: "tvkhq-banner", title: "TVK Vadavalli HQ", image_url: "/images/tvkhq-banner.png", redirect_url: "/", display_order: 0 }, ...content.banners]
+      : [{ id: "tvkhq-banner", title: "TVK Vadavalli HQ", image_url: "/images/tvkhq-banner.png", redirect_url: "/", display_order: 0 }];
 
   return (
     <main>

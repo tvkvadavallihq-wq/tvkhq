@@ -135,8 +135,8 @@ export const adminUserUpsertSchema = z
       .max(80, "Username அதிகபட்சம் 80 எழுத்துகள்")
       .regex(/^[a-zA-Z0-9._@-]+$/, "சரியான username-ஐ உள்ளிடவும்"),
     password: z.string().min(8, "கடவுச்சொல் குறைந்தபட்சம் 8 எழுத்துகள்").optional().or(z.literal("")),
-    full_name: z.string().trim().min(2, "பெயரை உள்ளிடவும்").max(120, "பெயர் அதிகபட்சம் 120 எழுத்துகள்"),
-    phone: z.string().trim().regex(/^[6-9]\d{9}$/, "சரியான மொபைல் எண்ணை உள்ளிடவும்").optional().or(z.literal("")),
+    name: z.string().trim().min(2, "பெயரை உள்ளிடவும்").max(120, "பெயர் அதிகபட்சம் 120 எழுத்துகள்"),
+    mobile: z.string().trim().regex(/^[6-9]\d{9}$/, "சரியான மொபைல் எண்ணை உள்ளிடவும்").optional().or(z.literal("")),
     role: z.nativeEnum(UserRole, {
       errorMap: () => ({ message: "சரியான role-ஐ தேர்வு செய்யவும்" }),
     }),

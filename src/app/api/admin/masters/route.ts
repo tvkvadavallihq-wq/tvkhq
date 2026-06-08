@@ -85,13 +85,13 @@ export async function POST(request: Request) {
 
     switch (action) {
       case "create-category": {
-        const payload = value as { name_ta: string; name_en: string | null; slug: string };
-        if (!payload.name_ta || !payload.slug) return badRequest("வகை பெயர் மற்றும் slug தேவை.");
+        const payload = value as { name_ta: string; name_en: string | null; icon: string | null };
+        if (!payload.name_ta) return badRequest("வகை பெயர் தேவை.");
 
         const { error } = await client.from("complaint_categories").insert({
           name_ta: payload.name_ta,
           name_en: payload.name_en,
-          slug: payload.slug,
+          icon: payload.icon,
           is_active: true,
         });
         if (error) throw new Error(error.message);
@@ -106,14 +106,27 @@ export async function POST(request: Request) {
         break;
       }
       case "create-ward": {
-        const payload = value as { ward_number: number; name_ta: string; name_en: string | null };
-        if (!Number.isFinite(payload.ward_number) || !payload.name_ta) return badRequest("சரியான ward விவரங்களை உள்ளிடவும்.");
+        const payload = value as {
+          ward_number: number;
+          ward_name: string | null;
+          assembly_constituency: string | null;
+          city: string | null;
+          district: string | null;
+          secretary_name: string | null;
+          secretary_mobile: string | null;
+          secretary_whatsapp: string | null;
+        };
+        if (!Number.isFinite(payload.ward_number)) return badRequest("சரியான ward விவரங்களை உள்ளிடவும்.");
 
         const { error } = await client.from("wards").insert({
-          number: payload.ward_number,
-          name_ta: payload.name_ta,
-          name_en: payload.name_en,
-          is_active: true,
+          ward_number: payload.ward_number,
+          ward_name: payload.ward_name,
+          assembly_constituency: payload.assembly_constituency,
+          city: payload.city,
+          district: payload.district,
+          secretary_name: payload.secretary_name,
+          secretary_mobile: payload.secretary_mobile,
+          secretary_whatsapp: payload.secretary_whatsapp,
         });
         if (error) throw new Error(error.message);
         resultMessage = "வார்டு சேர்க்கப்பட்டது.";
@@ -127,13 +140,14 @@ export async function POST(request: Request) {
         break;
       }
       case "create-poc": {
-        const payload = value as { ward_id: string; name: string; phone: string; area_name: string };
-        if (!payload.ward_id || !payload.name || !payload.phone || !payload.area_name) return badRequest("POC விவரங்கள் தேவை.");
+        const payload = value as { ward_id: string; name: string; mobile: string; whatsapp: string | null; area_name: string };
+        if (!payload.ward_id || !payload.name || !payload.mobile || !payload.area_name) return badRequest("POC விவரங்கள் தேவை.");
 
         const { error } = await client.from("area_pocs").insert({
           ward_id: payload.ward_id,
           name: payload.name,
-          phone: payload.phone,
+          mobile: payload.mobile,
+          whatsapp: payload.whatsapp,
           area_name: payload.area_name,
           is_active: true,
         });
@@ -149,34 +163,31 @@ export async function POST(request: Request) {
         break;
       }
       case "create-announcement": {
-        const payload = value as { title_ta: string; body_ta: string };
-        if (!payload.title_ta || !payload.body_ta) return badRequest("அறிவிப்பு விவரங்கள் தேவை.");
+        const payload = value as { title: string; content: string; image_url: string | null };
+        if (!payload.title || !payload.content) return badRequest("அறிவிப்பு விவரங்கள் தேவை.");
 
         const { error } = await client.from("announcements").insert({
-          title_ta: payload.title_ta,
-          body_ta: payload.body_ta,
-          is_active: true,
-          published_at: new Date().toISOString(),
+          title: payload.title,
+          content: payload.content,
+          image_url: payload.image_url,
+          created_by: session.user.id,
         });
         if (error) throw new Error(error.message);
         resultMessage = "அறிவிப்பு சேர்க்கப்பட்டது.";
         break;
       }
       case "toggle-announcement": {
-        const payload = value as { id: string; is_active: boolean };
-        const { error } = await client.from("announcements").update({ is_active: payload.is_active }).eq("id", payload.id);
-        if (error) throw new Error(error.message);
-        resultMessage = "அறிவிப்பு புதுப்பிக்கப்பட்டது.";
-        break;
+        return badRequest("அறிவிப்புகளுக்கு toggle ஆதரவு இல்லை.");
       }
       case "create-banner": {
-        const payload = value as { title_ta: string; image_path: string | null; link_url: string | null };
-        if (!payload.title_ta) return badRequest("Banner title தேவை.");
+        const payload = value as { title: string; image_url: string | null; redirect_url: string | null; display_order: number };
+        if (!payload.title) return badRequest("Banner title தேவை.");
 
         const { error } = await client.from("banners").insert({
-          title_ta: payload.title_ta,
-          image_path: payload.image_path,
-          link_url: payload.link_url,
+          title: payload.title,
+          image_url: payload.image_url,
+          redirect_url: payload.redirect_url,
+          display_order: payload.display_order,
           is_active: true,
         });
         if (error) throw new Error(error.message);
@@ -209,18 +220,18 @@ export async function POST(request: Request) {
         const fullNameValues = {
           username,
           password_hash: passwordHash,
-          full_name: payload.full_name,
-          phone: payload.phone || null,
+          name: payload.name,
+          mobile: payload.mobile || null,
           role: payload.role,
           ward_id: payload.role === UserRole.SUPER_ADMIN ? null : payload.ward_id || null,
           is_active: payload.is_active,
         };
 
-        const nameValues = {
+        const fallbackValues = {
           username,
           password_hash: passwordHash,
-          name: payload.full_name,
-          phone: payload.phone || null,
+          full_name: payload.name,
+          phone: payload.mobile || null,
           role: payload.role,
           ward_id: payload.role === UserRole.SUPER_ADMIN ? null : payload.ward_id || null,
           is_active: payload.is_active,
@@ -230,8 +241,8 @@ export async function POST(request: Request) {
           existingUser ? client.from("users").update(values).eq("id", existingUser.id) : client.from("users").insert(values);
 
         let profileWrite = await attemptWrite(fullNameValues);
-        if (profileWrite.error && isMissingColumnError(profileWrite.error, "full_name")) {
-          profileWrite = await attemptWrite(nameValues);
+        if (profileWrite.error && isMissingColumnError(profileWrite.error, "name")) {
+          profileWrite = await attemptWrite(fallbackValues);
         }
 
         if (profileWrite.error) {

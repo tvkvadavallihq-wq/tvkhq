@@ -1,6 +1,7 @@
 import { isSupabaseConfigured } from "@/lib/env";
 import { ComplaintStatus, UserRole } from "@/lib/enums";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { getPublicTableColumns, pickSelectColumns } from "@/lib/supabase/table-columns";
 import type { AdminProfile } from "@/lib/repositories/admin";
 import type { ComplaintFilterOptions } from "@/lib/repositories/complaints";
 import { getComplaintFilterOptions } from "@/lib/repositories/complaints";
@@ -56,12 +57,10 @@ export type AdminComplaintAssignmentRow = {
 export type AdminComplaintStatusRow = {
   id: string;
   complaint_id: string;
-  from_status: ComplaintStatus | null;
-  to_status: ComplaintStatus | null;
-  activity_type: string;
+  old_status: ComplaintStatus | null;
+  new_status: ComplaintStatus | null;
   remarks: string | null;
-  created_by: string | null;
-  changed_by: string | null;
+  updated_by: string | null;
   created_at: string;
 };
 
@@ -365,19 +364,76 @@ export async function getAdminComplaintDetail(
     throw new Error(complaintError.message);
   }
 
+  const [assignmentColumns, statusHistoryColumns] = await Promise.all([
+    getPublicTableColumns(client, "complaint_assignments"),
+    getPublicTableColumns(client, "complaint_status_history"),
+  ]);
+  const assignmentOrderColumn = assignmentColumns.has("created_at")
+    ? "created_at"
+    : assignmentColumns.has("assigned_at")
+      ? "assigned_at"
+      : "id";
+
+  const assignmentSelect = pickSelectColumns(assignmentColumns, [
+    "id",
+    "complaint_id",
+    "assigned_to",
+    "assigned_by",
+    "assigned_by_role",
+    "assigned_to_role",
+    "remarks",
+    "note",
+    "assigned_at",
+    "created_at",
+    "created_by",
+    "closed_at",
+  ]).join(",");
+  const statusHistorySelect = pickSelectColumns(statusHistoryColumns, [
+    "id",
+    "complaint_id",
+    "old_status",
+    "new_status",
+    "remarks",
+    "updated_by",
+    "created_at",
+    "from_status",
+    "to_status",
+    "note",
+    "changed_by",
+    "created_by",
+    "activity_type",
+  ]).join(",");
+
   const [{ data: assignments }, { data: statusHistory }, { data: media }] = await Promise.all([
-    client.from("complaint_assignments").select("id,complaint_id,assigned_to,assigned_by,assigned_by_role,assigned_to_role,remarks,created_at").eq("complaint_id", complaintId).order("created_at"),
-    client.from("complaint_status_history").select("id,complaint_id,from_status,to_status,activity_type,remarks,created_by,changed_by,created_at").eq("complaint_id", complaintId).order("created_at"),
-    client.from("complaint_media").select("id,complaint_id,file_url,media_type,uploaded_by,created_at").eq("complaint_id", complaintId).order("created_at"),
+    client.from("complaint_assignments").select(assignmentSelect).eq("complaint_id", complaintId).order(assignmentOrderColumn, { ascending: true }),
+    client.from("complaint_status_history").select(statusHistorySelect).eq("complaint_id", complaintId).order("created_at", { ascending: true }),
+    client.from("complaint_media").select("id,complaint_id,file_url,media_type,uploaded_by,created_at").eq("complaint_id", complaintId).order("created_at", { ascending: true }),
   ]);
 
-  const assignmentRows = (assignments ?? []) as AdminComplaintAssignmentRow[];
-  const statusRows = (statusHistory ?? []) as AdminComplaintStatusRow[];
+  const assignmentRows = (assignments ?? []).map((row: any) => ({
+    id: row.id,
+    complaint_id: row.complaint_id,
+    assigned_to: row.assigned_to,
+    assigned_by: row.assigned_by ?? null,
+    assigned_by_role: row.assigned_by_role ?? null,
+    assigned_to_role: row.assigned_to_role ?? null,
+    remarks: row.remarks ?? row.note ?? null,
+    created_at: row.created_at ?? row.assigned_at ?? new Date().toISOString(),
+  })) as AdminComplaintAssignmentRow[];
+  const statusRows = (statusHistory ?? []).map((row: any) => ({
+    id: row.id,
+    complaint_id: row.complaint_id,
+    old_status: (row.old_status ?? row.from_status ?? null) as ComplaintStatus | null,
+    new_status: (row.new_status ?? row.to_status ?? null) as ComplaintStatus | null,
+    remarks: row.remarks ?? row.note ?? null,
+    updated_by: row.updated_by ?? row.changed_by ?? row.created_by ?? null,
+    created_at: row.created_at,
+  })) as AdminComplaintStatusRow[];
   const mediaRows = (media ?? []) as AdminComplaintMediaRow[];
 
   const userIds = [
-    ...assignmentRows.flatMap((row) => [row.assigned_to, row.assigned_by ?? "", row.created_at ? "" : ""]),
-    ...statusRows.flatMap((row) => [row.created_by ?? "", row.changed_by ?? ""]),
+    ...assignmentRows.flatMap((row) => [row.assigned_to, row.assigned_by ?? ""]),
+    ...statusRows.flatMap((row) => [row.updated_by ?? ""]),
     ...mediaRows.map((row) => row.uploaded_by ?? ""),
   ].filter(Boolean);
 
@@ -405,13 +461,13 @@ export async function getAdminComplaintDetail(
     ...statusRows.map((row): AdminComplaintActivity => ({
       id: row.id,
       kind: "status" as const,
-      title: row.activity_type === "COMMENT" ? "Comment added" : row.activity_type === "ASSIGNMENT" ? "Assignment recorded" : "Status changed",
+      title: row.old_status && row.new_status && row.old_status !== row.new_status ? "Status changed" : "Comment added",
       note: row.remarks,
       created_at: row.created_at,
-      actor_name: row.created_by ? usersById[row.created_by]?.full_name ?? null : row.changed_by ? usersById[row.changed_by]?.full_name ?? null : null,
-      actor_role: row.created_by ? usersById[row.created_by]?.role ?? null : row.changed_by ? usersById[row.changed_by]?.role ?? null : null,
-      from_status: row.from_status,
-      to_status: row.to_status,
+      actor_name: row.updated_by ? usersById[row.updated_by]?.full_name ?? null : null,
+      actor_role: row.updated_by ? usersById[row.updated_by]?.role ?? null : null,
+      from_status: row.old_status,
+      to_status: row.new_status,
     })),
     ...assignmentRows.map((row): AdminComplaintActivity => ({
       id: row.id,

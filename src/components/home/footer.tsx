@@ -8,7 +8,7 @@ export function HomeFooter({
 }: {
   banners: HomepageBanner[];
 }) {
-  const socialLinks = banners.filter((banner) => Boolean(banner.link_url && /^https?:\/\//i.test(banner.link_url))).slice(0, 4);
+  const socialLinks = banners.filter((banner) => Boolean(banner.redirect_url && /^https?:\/\//i.test(banner.redirect_url))).slice(0, 4);
 
   return (
     <footer className="border-t bg-muted/35">
@@ -43,13 +43,13 @@ export function HomeFooter({
                   socialLinks.map((link, index) => (
                     <a
                       key={link.id}
-                      href={link.link_url!}
+                      href={link.redirect_url!}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted"
                     >
                       {index === 0 ? <Facebook className="size-4" /> : index === 1 ? <Instagram className="size-4" /> : index === 2 ? <Twitter className="size-4" /> : <MessageSquareMore className="size-4" />}
-                      {link.title_ta}
+                      {link.title}
                     </a>
                   ))
                 )}
