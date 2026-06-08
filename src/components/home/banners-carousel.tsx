@@ -15,21 +15,27 @@ export function BannersCarousel({ banners }: { banners: HomepageBanner[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border bg-card shadow-sm">
-      <div className="relative">
+    <div className="min-w-0 overflow-hidden rounded-3xl border bg-card shadow-sm">
+      <div className="relative min-w-0">
         <div className="relative aspect-[16/9] min-h-[260px] overflow-hidden bg-gradient-to-br from-amber-50 via-background to-stone-100 sm:min-h-[340px]">
           {active.image_url ? (
-            <Image src={active.image_url} alt={active.title} fill sizes="(max-width: 1024px) 100vw, 55vw" className="object-contain p-2 sm:p-4" />
+            <Image
+              src={active.image_url}
+              alt={active.title}
+              fill
+              sizes="(max-width: 1024px) 100vw, 55vw"
+              className="max-w-full object-contain p-2 sm:p-4"
+            />
           ) : (
             <div className="flex h-full w-full items-center justify-center px-6 text-center text-lg font-bold text-primary">
               {active.title}
             </div>
           )}
         </div>
-        <div className="flex flex-col gap-4 border-t bg-card px-4 py-4 sm:px-5">
-          <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-4 border-t bg-card px-4 py-4 sm:px-5">
+          <div className="flex min-w-0 items-center justify-between gap-3">
             {banners.length > 1 ? (
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"

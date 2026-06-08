@@ -13,29 +13,36 @@ export function HeroSection({
 }) {
   return (
     <section className="border-b border-border/60 bg-background">
-      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start lg:py-12">
-        <div className="space-y-4">
+      <div className="mx-auto grid max-w-6xl gap-5 px-4 py-6 sm:gap-6 sm:py-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start lg:py-12">
+        <div className="min-w-0 space-y-4">
           <div className="overflow-hidden rounded-3xl border bg-gradient-to-br from-amber-50 via-background to-stone-100 shadow-sm">
-            <div className="relative aspect-[16/9] min-h-[260px] overflow-hidden sm:min-h-[360px]">
+            <div className="relative aspect-[4/3] min-h-[220px] overflow-hidden sm:aspect-[16/9] sm:min-h-[360px]">
               {heroBannerSrc ? (
-                <Image src={heroBannerSrc} alt="TVK Vadavalli HQ banner" fill priority sizes="(max-width: 1024px) 100vw, 55vw" className="object-contain p-2 sm:p-4" />
+                <Image
+                  src={heroBannerSrc}
+                  alt="TVK Vadavalli HQ banner"
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 55vw"
+                  className="max-w-full object-contain p-1.5 sm:p-4"
+                />
               ) : null}
             </div>
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="relative overflow-hidden rounded-3xl border bg-background p-5 shadow-sm sm:p-6">
+        <div className="min-w-0 space-y-6">
+          <div className="relative min-w-0 overflow-hidden rounded-3xl border bg-background p-4 shadow-sm sm:p-6">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-secondary to-accent" />
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] text-primary">
                 <Sparkles className="size-3.5" />
                 மக்கள் சேவை தளம்
               </div>
-              <h1 className="text-3xl font-black leading-tight text-foreground sm:text-5xl">
+              <h1 className="text-2xl font-black leading-tight text-foreground sm:text-5xl">
                 வடவள்ளிக்கான புகார் தீர்வு, வார்டு தகவல் மற்றும் சேவைப் புதுப்பிப்புகள்
               </h1>
-              <p className="max-w-2xl text-base leading-7 text-muted-foreground">
+              <p className="max-w-full break-words text-base leading-7 text-muted-foreground">
                 புகார்களை பதிவு செய்யவும், நிலையை அறியவும், உங்கள் வார்டு தொடர்பாளர்களை உடனே கண்டுபிடிக்கவும். நேரடி தரவுடன் இயங்கும் பொதுத் தளம்.
               </p>
 

@@ -16,7 +16,7 @@ export function WardDirectory({
   ward: string;
 }) {
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <form className="grid gap-3 rounded-3xl border bg-card p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_220px_auto] md:items-end" method="get">
         <div className="space-y-2">
           <label htmlFor="area" className="text-sm font-semibold">
@@ -52,9 +52,9 @@ export function WardDirectory({
           </Card>
         ) : (
           wardContacts.map((contact) => (
-            <Card key={contact.id} className="rounded-3xl">
-              <CardContent className="grid gap-4 p-5 md:grid-cols-[1.2fr_0.8fr] md:items-center">
-                <div className="space-y-2">
+            <Card key={contact.id} className="min-w-0 rounded-3xl">
+              <CardContent className="grid min-w-0 gap-4 p-5 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+                <div className="min-w-0 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-black text-primary">
                       வார்டு {contact.ward_number ?? "-"}
@@ -63,12 +63,12 @@ export function WardDirectory({
                       <span className="rounded-full border bg-background px-3 py-1 text-xs font-bold text-muted-foreground">{contact.area_name}</span>
                     ) : null}
                   </div>
-                  <h3 className="text-lg font-black">{contact.name}</h3>
+                  <h3 className="break-words text-lg font-black">{contact.name}</h3>
                   <p className="text-sm leading-6 text-muted-foreground">Area POC</p>
-                  {contact.address ? <p className="text-sm leading-6 text-muted-foreground">{contact.address}</p> : null}
+                  {contact.address ? <p className="break-words text-sm leading-6 text-muted-foreground">{contact.address}</p> : null}
                 </div>
 
-                <div className="space-y-2 rounded-2xl border bg-muted/30 p-4">
+                <div className="min-w-0 space-y-2 rounded-2xl border bg-muted/30 p-4">
                   <ContactLine label="மொபைல்" value={contact.phone} href={`tel:${contact.phone}`} />
                   {contact.whatsapp ? <ContactLine label="WhatsApp" value={contact.whatsapp} href={`https://wa.me/${contact.whatsapp.replace(/\D/g, "")}`} /> : null}
                 </div>
@@ -83,9 +83,9 @@ export function WardDirectory({
 
 function ContactLine({ label, value, href }: { label: string; value: string; href: string }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="flex min-w-0 items-center justify-between gap-3">
       <span className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">{label}</span>
-      <a href={href} className="truncate text-sm font-bold text-primary">
+      <a href={href} className="min-w-0 truncate text-sm font-bold text-primary">
         {value}
       </a>
     </div>
