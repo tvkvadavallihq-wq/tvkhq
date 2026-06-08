@@ -15,18 +15,7 @@ export function HeroSection({
     <section className="border-b border-border/60 bg-background">
       <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start lg:py-12">
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-primary">
-            <span className="h-2 w-2 rounded-full bg-primary" />
-            TVK Vadavalli HQ
-          </div>
-
           <div className="overflow-hidden rounded-3xl border bg-gradient-to-br from-amber-50 via-background to-stone-100 shadow-sm">
-            <div className="flex items-center justify-between gap-3 border-b bg-background/80 px-4 py-3 backdrop-blur">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Featured Banner</p>
-                <p className="text-sm font-semibold text-foreground">TVK Vadavalli HQ public banner</p>
-              </div>
-            </div>
             <div className="relative aspect-[16/9] min-h-[260px] overflow-hidden sm:min-h-[360px]">
               {heroBannerSrc ? (
                 <Image src={heroBannerSrc} alt="TVK Vadavalli HQ banner" fill priority sizes="(max-width: 1024px) 100vw, 55vw" className="object-contain p-2 sm:p-4" />

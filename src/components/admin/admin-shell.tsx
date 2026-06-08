@@ -18,18 +18,18 @@ export function AdminShell({
         </aside>
 
         <div className="flex min-h-screen min-w-0 flex-col">
-          <div className="border-b bg-card/95 px-4 py-3 backdrop-blur lg:hidden">
-            <details className="group rounded-2xl border bg-background shadow-sm">
+          <div className="border-b border-[#f4d08a]/30 bg-gradient-to-r from-[#3b0000] via-[#7a0d0d] to-[#b51f13] px-4 py-3 text-white backdrop-blur lg:hidden">
+            <details className="group rounded-2xl border border-white/15 bg-white/10 shadow-sm">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Admin Menu</p>
-                  <p className="truncate text-sm font-black">{profile.full_name}</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-200">Admin Menu</p>
+                  <p className="truncate text-sm font-black text-white">{profile.full_name}</p>
                 </div>
-                <span className="rounded-full border bg-muted/40 px-3 py-1 text-xs font-bold text-muted-foreground group-open:bg-primary group-open:text-primary-foreground">
+                <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-bold text-white group-open:bg-white group-open:text-[#7a0d0d]">
                   திற
                 </span>
               </summary>
-              <div className="border-t p-3">
+              <div className="border-t border-white/15 p-3">
                 <AdminSidebar role={profile.role} fullName={profile.full_name} wardNumber={profile.ward_number ?? null} />
               </div>
             </details>

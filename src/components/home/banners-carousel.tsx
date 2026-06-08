@@ -27,21 +27,7 @@ export function BannersCarousel({ banners }: { banners: HomepageBanner[] }) {
           )}
         </div>
         <div className="flex flex-col gap-4 border-t bg-card px-4 py-4 sm:px-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Featured Banner</p>
-              <p className="truncate text-sm font-semibold text-foreground">{active.title_ta}</p>
-            </div>
-            {active.link_url ? (
-              <Button asChild size="sm" variant="outline" className="shrink-0">
-                <a href={active.link_url} target="_blank" rel="noreferrer">
-                  Open Banner
-                </a>
-              </Button>
-            ) : null}
-          </div>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Carousel</p>
             {banners.length > 1 ? (
               <div className="flex items-center gap-2">
                 <Button

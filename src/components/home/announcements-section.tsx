@@ -41,11 +41,6 @@ export function AnnouncementsSection({
         </Card>
 
         <div className="space-y-4">
-          <div className="space-y-1 px-1">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">பேனர்</p>
-            <h2 className="text-2xl font-black tracking-tight sm:text-3xl">Banner Carousel</h2>
-            <p className="max-w-xl text-sm leading-6 text-muted-foreground">முக்கிய செய்திகள், சேவை அறிவிப்புகள், மற்றும் சிறப்பு தகவல்கள் பெரியதாகவும் தெளிவாகவும் காட்டப்படுகின்றன.</p>
-          </div>
           <BannersCarousel banners={banners} />
         </div>
       </div>
