@@ -37,10 +37,8 @@ export function AdminActivityFeed({ items }: { items: AdminComplaintActivity[] }
                 </p>
               ) : null}
               {item.note ? <p className="mt-2 text-sm leading-6">{item.note}</p> : null}
-              {"media_stage" in item ? (
-                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  {item.media_stage} · {item.media_type}
-                </p>
+              {"media_type" in item ? (
+                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">{item.media_type}</p>
               ) : null}
             </div>
           ))

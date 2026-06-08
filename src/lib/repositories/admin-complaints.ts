@@ -68,15 +68,10 @@ export type AdminComplaintStatusRow = {
 export type AdminComplaintMediaRow = {
   id: string;
   complaint_id: string;
-  bucket: string;
-  storage_path: string | null;
   file_url: string | null;
-  media_stage: "BEFORE" | "AFTER" | string;
   media_type: string;
-  caption: string | null;
   uploaded_by: string | null;
-  created_at: string;
-  signed_url: string | null;
+  created_at: string | null;
 };
 
 export type AdminComplaintUser = {
@@ -119,7 +114,6 @@ export type AdminComplaintActivity =
       created_at: string;
       actor_name: string | null;
       actor_role: UserRole | null;
-      media_stage: string;
       media_type: string;
       url: string | null;
     };
@@ -170,11 +164,7 @@ function normalizePage(page?: number) {
   return page && page > 0 ? page : 1;
 }
 
-function resolveMediaUrl(client: SupabaseClient, media: { bucket: string; storage_path: string | null; file_url: string | null }) {
-  if (media.storage_path) {
-    return client.storage.from(media.bucket).createSignedUrl(media.storage_path, 60 * 60).then(({ data }: any) => data?.signedUrl ?? media.file_url ?? null);
-  }
-
+function resolveMediaUrl(_client: SupabaseClient, media: { file_url: string | null }) {
   return Promise.resolve(media.file_url ?? null);
 }
 
@@ -378,7 +368,7 @@ export async function getAdminComplaintDetail(
   const [{ data: assignments }, { data: statusHistory }, { data: media }] = await Promise.all([
     client.from("complaint_assignments").select("id,complaint_id,assigned_to,assigned_by,assigned_by_role,assigned_to_role,remarks,created_at").eq("complaint_id", complaintId).order("created_at"),
     client.from("complaint_status_history").select("id,complaint_id,from_status,to_status,activity_type,remarks,created_by,changed_by,created_at").eq("complaint_id", complaintId).order("created_at"),
-    client.from("complaint_media").select("id,complaint_id,bucket,storage_path,file_url,media_stage,media_type,caption,uploaded_by,created_at").eq("complaint_id", complaintId).order("created_at"),
+    client.from("complaint_media").select("id,complaint_id,file_url,media_type,uploaded_by,created_at").eq("complaint_id", complaintId).order("created_at"),
   ]);
 
   const assignmentRows = (assignments ?? []) as AdminComplaintAssignmentRow[];
@@ -393,12 +383,7 @@ export async function getAdminComplaintDetail(
 
   const usersById = await getUsersMap(client, userIds);
 
-  const hydratedMedia = await Promise.all(
-    mediaRows.map(async (item) => ({
-      ...item,
-      signed_url: await resolveMediaUrl(client, item),
-    })),
-  );
+  const hydratedMedia = await Promise.all(mediaRows.map(async (item) => ({ ...item, file_url: await resolveMediaUrl(client, item) })));
 
   const wardRelation = Array.isArray((complaint as any)?.wards) ? (complaint as any).wards[0] ?? null : (complaint as any)?.wards ?? null;
   const categoryRelation = Array.isArray((complaint as any)?.complaint_categories)
@@ -442,14 +427,13 @@ export async function getAdminComplaintDetail(
     ...hydratedMedia.map((row): AdminComplaintActivity => ({
       id: row.id,
       kind: "media" as const,
-      title: row.media_stage === "AFTER" ? "After image uploaded" : "Before image uploaded",
-      note: row.caption,
-      created_at: row.created_at,
+      title: row.media_type.startsWith("video/") ? "Video uploaded" : "Image uploaded",
+      note: null,
+      created_at: row.created_at ?? new Date().toISOString(),
       actor_name: row.uploaded_by ? usersById[row.uploaded_by]?.full_name ?? null : null,
       actor_role: row.uploaded_by ? usersById[row.uploaded_by]?.role ?? null : null,
-      media_stage: row.media_stage,
       media_type: row.media_type,
-      url: row.signed_url,
+      url: row.file_url,
     })),
   ]
     .filter(Boolean)

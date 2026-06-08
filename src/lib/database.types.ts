@@ -26,19 +26,16 @@ export interface Database {
       complaints: {
         Row: {
           id: string;
-          tracking_id: string;
           ward_id: string;
           category_id: string;
-          complainant_name: string;
-          complainant_phone: string;
-          complainant_email: string | null;
-          area_name: string;
+          complaint_number: string;
+          mobile: string;
           address: string;
-          gps_latitude: number | null;
-          gps_longitude: number | null;
+          latitude: number | null;
+          longitude: number | null;
           title: string;
           description: string;
-          status: ComplaintStatus;
+          current_status: ComplaintStatus;
           priority: number;
           created_by: string | null;
           created_at: string;
@@ -47,19 +44,16 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          tracking_id?: string;
           ward_id: string;
           category_id: string;
-          complainant_name: string;
-          complainant_phone: string;
-          complainant_email?: string | null;
-          area_name: string;
+          complaint_number?: string;
+          mobile: string;
           address: string;
-          gps_latitude?: number | null;
-          gps_longitude?: number | null;
+          latitude?: number | null;
+          longitude?: number | null;
           title: string;
           description: string;
-          status?: ComplaintStatus;
+          current_status?: ComplaintStatus;
           priority?: number;
           created_by?: string | null;
           created_at?: string;
@@ -70,8 +64,8 @@ export interface Database {
         Relationships: [];
       };
       complaint_media: {
-        Row: { id: string; complaint_id: string; bucket: string; path: string; mime_type: string; size_bytes: number; uploaded_by: string | null; created_at: string };
-        Insert: { id?: string; complaint_id: string; bucket: string; path: string; mime_type: string; size_bytes: number; uploaded_by?: string | null; created_at?: string };
+        Row: { id: string; complaint_id: string; media_type: string | null; file_url: string | null; uploaded_by: string | null; created_at: string | null };
+        Insert: { id?: string; complaint_id?: string | null; media_type?: string | null; file_url?: string | null; uploaded_by?: string | null; created_at?: string | null };
         Update: Partial<Database["public"]["Tables"]["complaint_media"]["Insert"]>;
         Relationships: [];
       };

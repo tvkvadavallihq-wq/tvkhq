@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { STORAGE_BUCKETS } from "@/lib/constants";
 import { ComplaintStatus } from "@/lib/enums";
 import { sanitizePhone, sanitizeText } from "@/lib/security/sanitize";
@@ -38,6 +39,31 @@ function cleanSegment(value: string) {
 function buildStoragePath(trackingId: string, folder: "images" | "videos", file: File, index: number) {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   return `complaints/${trackingId}/${folder}/${stamp}-${index + 1}-${cleanSegment(file.name)}.${fileExtension(file)}`;
+}
+
+function generateComplaintNumber(createdAt = new Date()) {
+  const year = createdAt.getFullYear();
+  const suffix = Math.floor(100000 + Math.random() * 900000);
+  return `TVK-CBE-${year}-${suffix}`;
+}
+
+async function insertComplaintRow(
+  supabase: ReturnType<typeof createSupabaseServiceClient>,
+  payload: {
+    id: string;
+    complaint_number: string;
+    ward_id: string;
+    category_id: string;
+    mobile: string;
+    address: string;
+    latitude: number | null;
+    longitude: number | null;
+    title: string;
+    description: string;
+    current_status: ComplaintStatus;
+  },
+) {
+  return supabase.from("complaints").insert(payload).select("id,complaint_number").single();
 }
 
 export async function registerComplaintSubmission(rawInput: unknown) {
@@ -86,29 +112,35 @@ export async function registerComplaintSubmission(rawInput: unknown) {
     throw new Error("தேர்ந்த பகுதி அந்த வார்டில் கிடைக்கவில்லை.");
   }
 
-  const created = await supabase
-    .from("complaints")
-    .insert({
-      ward_id: parsed.ward_id,
-      category_id: parsed.category_id,
-      complainant_name: parsed.complainant_name,
-      complainant_phone: complainantPhone,
-      area_name: areaName,
-      address,
-      gps_latitude: parsed.gps_latitude,
-      gps_longitude: parsed.gps_longitude,
-      title: complaintTitle(category.name_ta, getAreaName(matchingArea as any) ?? areaName),
-      description,
-      status: ComplaintStatus.NEW,
-    })
-    .select("id,tracking_id")
-    .single();
+  const complaintPayload = {
+    id: randomUUID(),
+    complaint_number: generateComplaintNumber(),
+    ward_id: parsed.ward_id,
+    category_id: parsed.category_id,
+    mobile: complainantPhone,
+    address,
+    latitude: parsed.gps_latitude,
+    longitude: parsed.gps_longitude,
+    title: complaintTitle(category.name_ta, getAreaName(matchingArea as any) ?? areaName),
+    description,
+    current_status: ComplaintStatus.NEW,
+  } satisfies Parameters<typeof insertComplaintRow>[1];
 
-  if (created.error || !created.data) {
-    throw new Error(created.error?.message ?? "புகார் பதிவை உருவாக்க முடியவில்லை.");
+  let created;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    created = await insertComplaintRow(supabase, { ...complaintPayload, complaint_number: generateComplaintNumber() });
+    if (!created.error && created.data) {
+      break;
+    }
+
+    const message = created.error?.message ?? "";
+    const isDuplicateNumber = /duplicate key value violates unique constraint|unique constraint/i.test(message);
+    if (!isDuplicateNumber || attempt === 4) {
+      throw new Error(message || "புகார் பதிவை உருவாக்க முடியவில்லை.");
+    }
   }
 
-  const complaint = created.data;
+  const complaint = created!.data!;
   const uploadedPaths: string[] = [];
   const filesToStore = [
     ...parsed.image_files.map((file) => ({ file, folder: "images" as const })),
@@ -117,7 +149,7 @@ export async function registerComplaintSubmission(rawInput: unknown) {
 
   try {
     for (const [index, item] of filesToStore.entries()) {
-      const path = buildStoragePath(complaint.tracking_id, item.folder, item.file, index);
+      const path = buildStoragePath(complaint.complaint_number, item.folder, item.file, index);
       const uploadResult = await supabase.storage.from(STORAGE_BUCKETS.complaintMedia).upload(path, item.file, {
         contentType: item.file.type,
         upsert: false,
@@ -128,13 +160,15 @@ export async function registerComplaintSubmission(rawInput: unknown) {
       }
 
       uploadedPaths.push(path);
+      const { data: publicUrlData } = supabase.storage.from(STORAGE_BUCKETS.complaintMedia).getPublicUrl(path);
 
       const mediaInsert = await supabase.from("complaint_media").insert({
+        id: randomUUID(),
         complaint_id: complaint.id,
-        bucket: STORAGE_BUCKETS.complaintMedia,
-        path,
-        mime_type: item.file.type,
-        size_bytes: item.file.size,
+        media_type: item.file.type,
+        file_url: publicUrlData.publicUrl,
+        uploaded_by: null,
+        created_at: new Date().toISOString(),
       });
 
       if (mediaInsert.error) {
@@ -147,7 +181,7 @@ export async function registerComplaintSubmission(rawInput: unknown) {
     }
 
     await supabase.from("complaints").delete().eq("id", complaint.id);
-    logError("Complaint submission rollback", error, { trackingId: complaint.tracking_id });
+    logError("Complaint submission rollback", error, { trackingId: complaint.complaint_number });
     throw error instanceof Error ? error : new Error("கோப்புகளைப் பதிவேற்ற முடியவில்லை.");
   }
 
@@ -157,7 +191,7 @@ export async function registerComplaintSubmission(rawInput: unknown) {
     entity_type: "complaint",
     entity_id: complaint.id,
     details: {
-      tracking_id: complaint.tracking_id,
+      tracking_id: complaint.complaint_number,
       ward_id: parsed.ward_id,
       category_id: parsed.category_id,
       file_count: filesToStore.length,
@@ -166,14 +200,14 @@ export async function registerComplaintSubmission(rawInput: unknown) {
 
   void notifyComplaintCreated(
     { name: parsed.complainant_name, phone: complainantPhone },
-    complaint.tracking_id,
+    complaint.complaint_number,
     getWardNameTa(ward as any) ?? "வார்டு",
     category.name_ta,
   );
 
   return {
     complaintId: complaint.id,
-    trackingId: complaint.tracking_id,
+    trackingId: complaint.complaint_number,
     categoryNameTa: category.name_ta,
     wardNameTa: getWardNameTa(ward as any),
     wardNumber: getWardNumber(ward as any),

@@ -10,7 +10,7 @@ export const OFFICE_CONTACT = {
   hours: "காலை 9 மணி முதல் இரவு 9 மணி வரை",
 } as const;
 export const STORAGE_BUCKETS = {
-  complaintMedia: process.env.NEXT_PUBLIC_STORAGE_BUCKET ?? "complaint-media",
+  complaintMedia: process.env.NEXT_PUBLIC_STORAGE_BUCKET ?? "complaint_media",
 } as const;
 
 export const COMPLAINT_UPLOAD_LIMITS = {

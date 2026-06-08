@@ -27,7 +27,7 @@ function sanitizeFileName(name: string) {
 }
 
 async function loadComplaintAccess(service: ReturnType<typeof createSupabaseServiceClient>, complaintId: string, wardId: string | null, isSuperAdmin: boolean) {
-  let query = service.from("complaints").select("id,complaint_number,ward_id,current_status,complainant_phone,complainant_name").eq("id", complaintId);
+  let query = service.from("complaints").select("id,complaint_number,ward_id,current_status,mobile").eq("id", complaintId);
 
   if (!isSuperAdmin) {
     query = query.eq("ward_id", wardId ?? "00000000-0000-0000-0000-000000000000");
@@ -166,8 +166,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
 
       void notifyComplaintStatusChange(
         {
-          name: (complaint as any).complainant_name ?? "Citizen",
-          phone: (complaint as any).complainant_phone ?? undefined,
+          name: "Citizen",
+          phone: (complaint as any).mobile ?? undefined,
         },
         (complaint as any).complaint_number ?? complaintId,
         parsed.data.status,
@@ -245,14 +245,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
           const { data: publicUrlData } = service.storage.from(bucket).getPublicUrl(storagePath);
 
           return {
+            id: randomUUID(),
             complaint_id: complaintId,
-            bucket,
-            storage_path: storagePath,
             file_url: publicUrlData.publicUrl,
-            media_stage: parsed.data.media_stage,
             media_type: file.type || "image/jpeg",
-            caption: parsed.data.caption || null,
             uploaded_by: session.user.id,
+            created_at: new Date().toISOString(),
           };
         }),
       );
