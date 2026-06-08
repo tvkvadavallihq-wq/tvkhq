@@ -44,6 +44,7 @@ export function AdminComplaintCard({ complaint }: { complaint: AdminComplaintLis
           <Detail label="மொபைல்" value={complaint.mobile} />
           <Detail label="வார்டு" value={complaint.ward_number ? `வார்டு ${complaint.ward_number}` : "-"} />
           <Detail label="வகை" value={complaint.category_name_ta ?? "-"} />
+          <Detail label="பொறுப்பாளர்" value={complaint.assignee_name ?? "-"} />
           <Detail label="பதிவு தேதி" value={formatDate(complaint.created_at)} />
           <Detail label="தீர்வு தேதி" value={complaint.resolved_at ? formatDate(complaint.resolved_at) : "-"} />
           <Detail label="புதுப்பிப்பு" value={formatDate(complaint.updated_at)} />

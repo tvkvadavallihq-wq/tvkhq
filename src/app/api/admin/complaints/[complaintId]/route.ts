@@ -292,7 +292,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
         return NextResponse.json({ ok: false, error: parsed.error.issues[0]?.message ?? "சரியான தகவலை உள்ளிடவும்." }, { status: 400 });
       }
 
-      const targetUserResult = await service.from("users").select("id,role,is_active").eq("id", parsed.data.assigned_to).maybeSingle();
+      const targetUserResult = await service.from("users").select("id,role,is_active,ward_id").eq("id", parsed.data.assigned_to).maybeSingle();
       if (targetUserResult.error) {
         throw new Error(targetUserResult.error.message);
       }
@@ -302,8 +302,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
 
       const targetRole = targetUserResult.data.role as UserRole;
       const expectedRole = nextAssignmentRole(session.profile.role);
-      if (!expectedRole || targetRole !== expectedRole) {
-        return NextResponse.json({ ok: false, error: `Role ${session.profile.role} can assign only to ${expectedRole ?? "-"}.` }, { status: 400 });
+      const isSameWardTarget =
+        !targetUserResult.data.ward_id ||
+        targetUserResult.data.ward_id === complaint.ward_id ||
+        targetUserResult.data.ward_id === session.profile.ward_id;
+
+      if ((!expectedRole || targetRole !== expectedRole) && !isSameWardTarget) {
+        return NextResponse.json({ ok: false, error: `Role ${session.profile.role} can assign only to ${expectedRole ?? "same ward active users"}.` }, { status: 400 });
       }
 
       const currentStatus = complaint.current_status as ComplaintStatus;

@@ -81,6 +81,7 @@ export const adminComplaintListFiltersSchema = z.object({
   q: z.string().optional(),
   ward: z.string().optional(),
   category: z.string().optional(),
+  assignee: z.string().optional(),
   status: z.nativeEnum(ComplaintStatus).optional(),
   sort: z.enum(["created_at", "updated_at", "priority", "current_status"]).default("created_at"),
   order: z.enum(["asc", "desc"]).default("desc"),

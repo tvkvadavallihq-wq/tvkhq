@@ -14,16 +14,19 @@ type SelectOption = {
 export function AdminComplaintFilters({
   wards,
   categories,
+  assignees,
   current,
 }: {
   wards: SelectOption[];
   categories: SelectOption[];
+  assignees: SelectOption[];
   current: AdminComplaintListFilterValues & { q?: string; ward?: string; category?: string; status?: string };
 }) {
   return (
     <Card>
       <CardContent className="p-4">
         <form className="grid gap-3 xl:grid-cols-12" method="get">
+          <input type="hidden" name="page" value="1" />
           <div className="space-y-2 xl:col-span-4">
             <label htmlFor="q" className="text-sm font-semibold">
               தேடல்
@@ -54,6 +57,20 @@ export function AdminComplaintFilters({
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2 xl:col-span-2">
+            <label htmlFor="assignee" className="text-sm font-semibold">
+              ஒதுக்கீடு
+            </label>
+            <select id="assignee" name="assignee" defaultValue={current.assignee ?? ""} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+              <option value="">அனைத்து பொறுப்பாளர்கள்</option>
+              {assignees.map((assignee) => (
+                <option key={assignee.id} value={assignee.id}>
+                  {assignee.label}
                 </option>
               ))}
             </select>

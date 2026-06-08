@@ -35,6 +35,7 @@ export default async function AdminComplaintsPage({
     q: firstValue(resolvedSearchParams.q),
     ward: firstValue(resolvedSearchParams.ward),
     category: firstValue(resolvedSearchParams.category),
+    assignee: firstValue(resolvedSearchParams.assignee),
     status: firstValue(resolvedSearchParams.status),
     sort: firstValue(resolvedSearchParams.sort),
     order: firstValue(resolvedSearchParams.order),
@@ -46,13 +47,14 @@ export default async function AdminComplaintsPage({
     q: current.q,
     ward: current.ward,
     category: current.category,
+    assignee: current.assignee,
     status: current.status,
     sort: current.sort,
     order: current.order,
     page: current.page,
   };
 
-  const [filterOptions, complaints] = await Promise.all([getAdminComplaintFilterOptions(), getAdminComplaintList(session.profile, filters)]);
+  const [filterOptions, complaints] = await Promise.all([getAdminComplaintFilterOptions(session.profile), getAdminComplaintList(session.profile, filters)]);
 
   return (
     <section className="space-y-6">
@@ -77,6 +79,7 @@ export default async function AdminComplaintsPage({
       <AdminComplaintFilters
         wards={filterOptions.wards.map((ward) => ({ id: ward.id, label: `Ward ${ward.ward_number}` }))}
         categories={filterOptions.categories.map((category) => ({ id: category.id, label: category.name_ta }))}
+        assignees={filterOptions.assignees.map((user) => ({ id: user.id, label: `${user.name}${user.ward_number ? ` · Ward ${user.ward_number}` : ""}` }))}
         current={filters}
       />
 
@@ -115,6 +118,7 @@ export default async function AdminComplaintsPage({
           q: filters.q,
           ward: filters.ward,
           category: filters.category,
+          assignee: filters.assignee,
           status: filters.status,
           sort: filters.sort,
           order: filters.order,

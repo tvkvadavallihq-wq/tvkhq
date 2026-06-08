@@ -13,6 +13,7 @@ export type AdminComplaintListFilters = {
   q?: string;
   ward?: string;
   category?: string;
+  assignee?: string;
   status?: ComplaintStatus;
   sort?: "created_at" | "updated_at" | "priority" | "current_status";
   order?: "asc" | "desc";
@@ -30,6 +31,8 @@ export type AdminComplaintListItem = {
   priority: number;
   ward_number: number | null;
   category_name_ta: string | null;
+  assignee_name: string | null;
+  assigned_user_id: string | null;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
@@ -151,6 +154,10 @@ export type AdminComplaintActionConfig = {
   assignableUsers: AdminComplaintUser[];
 };
 
+export type AdminComplaintFilterOptions = ComplaintFilterOptions & {
+  assignees: Array<{ id: string; name: string; role: UserRole; ward_number: number | null }>;
+};
+
 function getClient(): SupabaseClient {
   return createSupabaseServiceClient() as any;
 }
@@ -249,8 +256,33 @@ function applyScope(query: SupabaseClient, profile: AdminProfile) {
   return query.eq("ward_id", "00000000-0000-0000-0000-000000000000");
 }
 
-export async function getAdminComplaintFilterOptions(): Promise<ComplaintFilterOptions> {
-  return getComplaintFilterOptions();
+export async function getAdminComplaintFilterOptions(profile: AdminProfile): Promise<AdminComplaintFilterOptions> {
+  const base = await getComplaintFilterOptions();
+
+  if (!isConfigured()) {
+    return { ...base, assignees: [] };
+  }
+
+  const client = getClient();
+  const canManageGlobal = profile.role === UserRole.SUPER_ADMIN;
+  const usersQuery = client.from("users").select("id,name,role,ward_id,wards(*)").eq("is_active", true).order("name");
+  const { data, error } = canManageGlobal ? await usersQuery : await usersQuery.eq("ward_id", profile.ward_id ?? "00000000-0000-0000-0000-000000000000");
+
+  if (error) {
+    return { ...base, assignees: [] };
+  }
+
+  const assignees = (data ?? []).map((user: any) => {
+    const wardRelation = Array.isArray(user.wards) ? user.wards[0] ?? null : user.wards ?? null;
+    return {
+      id: user.id,
+      name: user.name ?? "",
+      role: user.role,
+      ward_number: getWardNumber(wardRelation) ?? null,
+    };
+  });
+
+  return { ...base, assignees };
 }
 
 export async function getAdminComplaintList(
@@ -271,7 +303,7 @@ export async function getAdminComplaintList(
   const scopeQuery = (q: any) => applyScope(q, profile);
 
   const selectBase =
-    "id,complaint_number,mobile,title,address,current_status,priority,created_at,updated_at,ward_id,category_id,wards(*),complaint_categories(name_ta)";
+    "id,complaint_number,mobile,title,address,current_status,priority,created_at,updated_at,ward_id,category_id,assigned_user_id,wards(*),complaint_categories(name_ta)";
 
   let query = scopeQuery(client.from("complaints").select(selectBase, { count: "exact" }));
 
@@ -290,6 +322,10 @@ export async function getAdminComplaintList(
     query = query.eq("category_id", filters.category);
   }
 
+  if (filters.assignee) {
+    query = query.eq("assigned_user_id", filters.assignee);
+  }
+
   if (filters.status) {
     query = query.eq("current_status", filters.status);
   }
@@ -303,6 +339,16 @@ export async function getAdminComplaintList(
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  const assignedUserIds = Array.from(new Set((data ?? []).map((item: any) => item.assigned_user_id).filter(Boolean)));
+  const assignedUsersMap: Record<string, { name: string }> = {};
+
+  if (assignedUserIds.length > 0) {
+    const { data: assignedUsers } = await client.from("users").select("id,name").in("id", assignedUserIds);
+    (assignedUsers ?? []).forEach((user: any) => {
+      assignedUsersMap[user.id] = { name: user.name ?? "" };
+    });
   }
 
   const items = (data ?? []).map((item: any) => {
@@ -321,6 +367,8 @@ export async function getAdminComplaintList(
       priority: item.priority,
       ward_number: getWardNumber(wardRelation) ?? null,
       category_name_ta: categoryRelation?.name_ta ?? null,
+      assignee_name: item.assigned_user_id ? assignedUsersMap[item.assigned_user_id]?.name ?? null : null,
+      assigned_user_id: item.assigned_user_id ?? null,
       created_at: item.created_at,
       updated_at: item.updated_at,
       resolved_at: null,
@@ -528,15 +576,12 @@ export async function getAdminComplaintActionConfig(
       assignableUsers: [],
     };
   }
-  const assignableUsers =
+  const baseQuery = client.from("users").select("id,name,mobile,role,ward_id,wards(*)").eq("is_active", true);
+
+  const primaryUsers =
     targetRole === null
       ? []
-      : (await client
-          .from("users")
-          .select("id,name,mobile,role,ward_id,wards(*)")
-          .eq("is_active", true)
-        .eq("role", targetRole)
-        .order("name")).data?.map((user: any) => {
+      : (await baseQuery.eq("role", targetRole).order("name")).data?.map((user: any) => {
           const wardRelation = Array.isArray(user.wards) ? user.wards[0] ?? null : user.wards ?? null;
           return {
             id: user.id,
@@ -548,10 +593,29 @@ export async function getAdminComplaintActionConfig(
           };
         }) ?? [];
 
+  const fallbackUsers =
+    primaryUsers.length > 0
+      ? []
+      : (await baseQuery
+          .neq("role", UserRole.SUPER_ADMIN)
+          .order("name")).data?.map((user: any) => {
+          const wardRelation = Array.isArray(user.wards) ? user.wards[0] ?? null : user.wards ?? null;
+          return {
+            id: user.id,
+            full_name: user.name ?? user.full_name ?? "",
+            phone: user.mobile ?? user.phone ?? null,
+            role: user.role,
+            ward_id: user.ward_id ?? null,
+            ward_number: getWardNumber(wardRelation) ?? null,
+          };
+        }) ?? [];
+
+  const assignableUsers = [...primaryUsers, ...fallbackUsers].filter((user, index, array) => array.findIndex((item) => item.id === user.id) === index);
+
   const scopedAssignableUsers =
     profile.role === UserRole.SUPER_ADMIN
       ? assignableUsers
-      : assignableUsers.filter((user: AdminComplaintUser) => user.ward_id === profile.ward_id || user.ward_id === wardId);
+      : assignableUsers.filter((user: AdminComplaintUser) => user.ward_id === profile.ward_id || user.ward_id === wardId || !user.ward_id);
 
   return {
     canVerify: profile.role !== UserRole.VOLUNTEER,

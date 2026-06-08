@@ -7,6 +7,7 @@ import { getWardNumber } from "@/lib/ward-utils";
 export type ComplaintFilterOptions = {
   wards: Array<{ id: string; ward_number: number }>;
   categories: Array<{ id: string; name_ta: string }>;
+  assignees?: Array<{ id: string; name: string; role: string; ward_number: number | null }>;
 };
 
 export type ComplaintListFilters = {
