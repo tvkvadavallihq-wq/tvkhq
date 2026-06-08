@@ -27,7 +27,6 @@ export type HomepageAnnouncement = {
 export type HomepageWardContact = {
   id: string;
   name: string;
-  designation_ta: string;
   phone: string;
   whatsapp: string | null;
   address: string | null;
@@ -55,11 +54,12 @@ type RawWardRow = { id: string; number?: number | string | null; ward_number?: n
 type RawWardContactRow = {
   id: string;
   name: string;
-  designation_ta: string;
-  phone: string;
+  mobile: string;
   whatsapp: string | null;
-  address: string | null;
+  area_name: string | null;
   ward_id: string | null;
+  is_active?: boolean | null;
+  wards?: RawWardRow | RawWardRow[] | null;
 };
 
 function resolutionRate(total: number, resolved: number) {
@@ -91,7 +91,7 @@ export async function getPublicHomeContent(searchParams: HomepageSearchParams = 
       .select("id,title,content,image_url,created_at")
       .order("created_at", { ascending: false })
       .limit(6),
-    supabase.from("ward_contacts").select("id,name,designation_ta,phone,whatsapp,address,ward_id").order("created_at", { ascending: false }),
+    supabase.from("area_pocs").select("id,name,mobile,whatsapp,area_name,ward_id,is_active,wards(*)").eq("is_active", true).order("area_name", { ascending: true }),
     supabase.from("wards").select("id,*").eq("is_active", true),
     supabase.from("complaints").select("id", { count: "exact", head: true }),
     supabase.from("complaints").select("id", { count: "exact", head: true }).in("current_status", ["RESOLVED", "CLOSED"]),
@@ -108,18 +108,20 @@ export async function getPublicHomeContent(searchParams: HomepageSearchParams = 
 
   const wardContacts = (contactsResult.data ?? [])
     .map((contact: RawWardContactRow) => {
+      const wardRelation = Array.isArray(contact.wards) ? contact.wards[0] ?? null : contact.wards ?? null;
+      const wardNumber = wardRelation ? getWardNumber(wardRelation) ?? null : contact.ward_id ? wardNumberById.get(String(contact.ward_id)) ?? null : null;
+
       return {
         id: contact.id,
         name: contact.name,
-        designation_ta: contact.designation_ta,
-        phone: contact.phone,
+        phone: contact.mobile,
         whatsapp: contact.whatsapp ?? null,
-        address: contact.address ?? null,
-        area_name: null,
+        address: null,
+        area_name: contact.area_name ?? null,
         ward_id: contact.ward_id ?? null,
-        ward_number: contact.ward_id ? wardNumberById.get(String(contact.ward_id)) ?? null : null,
+        ward_number: wardNumber,
         ward_name_ta: null,
-      };
+      } satisfies HomepageWardContact;
     })
     .filter((contact: HomepageWardContact) => {
       if (!normalizedArea && !normalizedWard) {
@@ -127,13 +129,13 @@ export async function getPublicHomeContent(searchParams: HomepageSearchParams = 
       }
 
       const areaMatch = normalizedArea
-        ? [contact.name, contact.address]
+        ? [contact.area_name, contact.name]
             .filter(Boolean)
             .some((value) => value?.toLowerCase().includes(normalizedArea.toLowerCase()))
         : true;
 
       const wardMatch = normalizedWard
-        ? [contact.ward_number?.toString()]
+        ? [contact.ward_number?.toString(), contact.ward_id]
             .filter(Boolean)
             .some((value) => value?.toLowerCase().includes(normalizedWard.toLowerCase()))
         : true;

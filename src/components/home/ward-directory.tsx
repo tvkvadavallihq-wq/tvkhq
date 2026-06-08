@@ -43,7 +43,7 @@ export function WardDirectory({
         </Button>
       </form>
 
-        <div className="grid gap-3">
+      <div className="grid gap-3">
         {wardContacts.length === 0 ? (
           <Card className="rounded-3xl">
             <CardContent className="p-5 text-sm text-muted-foreground">
@@ -59,11 +59,13 @@ export function WardDirectory({
                     <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-black text-primary">
                       வார்டு {contact.ward_number ?? "-"}
                     </span>
+                    {contact.area_name ? (
+                      <span className="rounded-full border bg-background px-3 py-1 text-xs font-bold text-muted-foreground">{contact.area_name}</span>
+                    ) : null}
                   </div>
-                  <h3 className="text-lg font-black">{contact.designation_ta}</h3>
-                  <p className="text-base font-semibold">{contact.name}</p>
-                  <p className="text-sm leading-6 text-muted-foreground">{contact.address ?? "Address not available"}</p>
-                  {contact.area_name ? <p className="text-sm font-medium text-muted-foreground">பகுதி: {contact.area_name}</p> : null}
+                  <h3 className="text-lg font-black">{contact.name}</h3>
+                  <p className="text-sm leading-6 text-muted-foreground">Area POC</p>
+                  {contact.address ? <p className="text-sm leading-6 text-muted-foreground">{contact.address}</p> : null}
                 </div>
 
                 <div className="space-y-2 rounded-2xl border bg-muted/30 p-4">
