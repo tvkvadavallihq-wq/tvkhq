@@ -368,7 +368,23 @@ export async function getAdminComplaintList(
   }
 
   if (filters.assignee) {
-    query = query.eq("assigned_user_id", filters.assignee);
+    const [{ data: assignmentRows }, { data: fallbackRows }] = await Promise.all([
+      client.from("complaint_assignments").select("complaint_id,assigned_to,created_at").eq("assigned_to", filters.assignee),
+      client.from("complaints").select("id").eq("assigned_user_id", filters.assignee),
+    ]);
+
+    const complaintIds = Array.from(
+      new Set<string>([
+        ...((assignmentRows ?? []).map((row: any) => row.complaint_id).filter((value: unknown): value is string => Boolean(value)) as string[]),
+        ...((fallbackRows ?? []).map((row: any) => row.id).filter((value: unknown): value is string => Boolean(value)) as string[]),
+      ]),
+    );
+
+    if (complaintIds.length === 0) {
+      return { items: [], total: 0, page, pageSize, pageCount: 0 };
+    }
+
+    query = query.in("id", complaintIds);
   }
 
   if (filters.status) {
@@ -386,7 +402,9 @@ export async function getAdminComplaintList(
     throw new Error(error.message);
   }
 
-  const assignedAssigneeIds = Array.from(new Set((data ?? []).map((item: any) => item.assigned_user_id).filter(Boolean)));
+  const assignedAssigneeIds = Array.from(
+    new Set<string>((data ?? []).map((item: any) => item.assigned_user_id).filter((value: unknown): value is string => Boolean(value))),
+  );
   const assignedUsersMap: Record<string, { name: string }> = {};
 
   if (assignedAssigneeIds.length > 0) {
