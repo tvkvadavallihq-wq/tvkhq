@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { getAdminSession } from "@/lib/repositories/admin";
@@ -89,6 +90,7 @@ export async function POST(request: Request) {
         if (!payload.name_ta) return badRequest("வகை பெயர் தேவை.");
 
         const { error } = await client.from("complaint_categories").insert({
+          id: randomUUID(),
           name_ta: payload.name_ta,
           name_en: payload.name_en,
           icon: payload.icon,
@@ -119,6 +121,7 @@ export async function POST(request: Request) {
         if (!Number.isFinite(payload.ward_number)) return badRequest("சரியான ward விவரங்களை உள்ளிடவும்.");
 
         const { error } = await client.from("wards").insert({
+          id: randomUUID(),
           ward_number: payload.ward_number,
           ward_name: payload.ward_name,
           assembly_constituency: payload.assembly_constituency,
@@ -144,6 +147,7 @@ export async function POST(request: Request) {
         if (!payload.ward_id || !payload.name || !payload.mobile || !payload.area_name) return badRequest("POC விவரங்கள் தேவை.");
 
         const { error } = await client.from("area_pocs").insert({
+          id: randomUUID(),
           ward_id: payload.ward_id,
           name: payload.name,
           mobile: payload.mobile,
@@ -167,6 +171,7 @@ export async function POST(request: Request) {
         if (!payload.title || !payload.content) return badRequest("அறிவிப்பு விவரங்கள் தேவை.");
 
         const { error } = await client.from("announcements").insert({
+          id: randomUUID(),
           title: payload.title,
           content: payload.content,
           image_url: payload.image_url,
@@ -184,6 +189,7 @@ export async function POST(request: Request) {
         if (!payload.title) return badRequest("Banner title தேவை.");
 
         const { error } = await client.from("banners").insert({
+          id: randomUUID(),
           title: payload.title,
           image_url: payload.image_url,
           redirect_url: payload.redirect_url,
@@ -218,6 +224,7 @@ export async function POST(request: Request) {
         }
 
         const fullNameValues = {
+          id: randomUUID(),
           username,
           password_hash: passwordHash,
           name: payload.name,
@@ -228,6 +235,7 @@ export async function POST(request: Request) {
         };
 
         const fallbackValues = {
+          id: randomUUID(),
           username,
           password_hash: passwordHash,
           full_name: payload.name,
