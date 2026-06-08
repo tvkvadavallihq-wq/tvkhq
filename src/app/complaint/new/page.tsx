@@ -1,11 +1,13 @@
 import { ComplaintForm } from "@/components/complaints/complaint-form";
 import { getComplaintFormOptions } from "@/lib/repositories/public";
+import { unstable_noStore as noStore } from "next/cache";
 
 export const metadata = {
   title: "புகார் பதிவு",
 };
 
 export default async function NewComplaintPage() {
+  noStore();
   const options = await getComplaintFormOptions();
 
   return (
@@ -16,7 +18,7 @@ export default async function NewComplaintPage() {
           புகார் விவரங்களை தெளிவாக பதிவு செய்யுங்கள். சமர்ப்பித்ததும் கண்காணிப்பு எண் கிடைக்கும்.
         </p>
       </div>
-      <ComplaintForm wards={options.wards} categories={options.categories} areas={options.areas} />
+      <ComplaintForm wards={options.wards} categories={options.categories} />
     </section>
   );
 }

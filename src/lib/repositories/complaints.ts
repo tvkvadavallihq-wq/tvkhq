@@ -1,6 +1,7 @@
 import { isSupabaseConfigured } from "@/lib/env";
 import { ComplaintStatus } from "@/lib/enums";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { getWardNumber } from "@/lib/ward-utils";
 
 export type ComplaintFilterOptions = {
   wards: Array<{ id: string; ward_number: number }>;
@@ -106,12 +107,12 @@ export async function getComplaintFilterOptions(): Promise<ComplaintFilterOption
 
   const supabase = getComplaintClient();
   const [{ data: wards }, { data: categories }] = await Promise.all([
-    supabase.from("wards").select("id,number").order("number"),
+    supabase.from("wards").select("id,*").order("id"),
     supabase.from("complaint_categories").select("id,name_ta").eq("is_active", true).order("name_ta"),
   ]);
 
   return {
-    wards: (wards ?? []).map((ward: any) => ({ id: ward.id, ward_number: ward.number })),
+    wards: (wards ?? []).map((ward: any) => ({ id: ward.id, ward_number: getWardNumber(ward) ?? 0 })),
     categories: categories ?? [],
   };
 }
@@ -127,7 +128,7 @@ async function loadComplaintByNumber(trackingId: string, phone?: string): Promis
 
   let complaintQuery = supabase
     .from("complaints")
-    .select("id,complaint_number,mobile,title,address,latitude,longitude,description,current_status,created_at,updated_at,wards(id,number),complaint_categories(id,name_ta)")
+    .select("id,complaint_number,mobile,title,address,latitude,longitude,description,current_status,created_at,updated_at,wards(*),complaint_categories(id,name_ta)")
     .eq("complaint_number", normalizedTrackingId);
 
   if (normalizedPhone) {
@@ -192,7 +193,7 @@ async function loadComplaintByNumber(trackingId: string, phone?: string): Promis
     status: complaint.current_status,
     created_at: complaint.created_at,
     resolved_at: resolveDate(complaint.current_status, complaint.updated_at),
-    ward: wardRelation ? { id: wardRelation.id, ward_number: wardRelation.number } : null,
+    ward: wardRelation ? { id: wardRelation.id, ward_number: getWardNumber(wardRelation) ?? 0 } : null,
     category: categoryRelation ? { id: categoryRelation.id, name_ta: categoryRelation.name_ta } : null,
     assignment: assignmentResult.data
       ? {
@@ -237,7 +238,7 @@ export async function getPublicComplaintList(filters: ComplaintListFilters = {})
 
   let query = supabase
     .from("complaints")
-    .select("id,complaint_number,title,address,current_status,created_at,updated_at,wards(id,number),complaint_categories(id,name_ta)", {
+    .select("id,complaint_number,title,address,current_status,created_at,updated_at,wards(*),complaint_categories(id,name_ta)", {
       count: "exact",
     })
     .order("created_at", { ascending: false });
@@ -282,7 +283,7 @@ export async function getPublicComplaintList(filters: ComplaintListFilters = {})
       status: item.current_status,
       created_at: item.created_at,
       resolved_at: resolveDate(item.current_status, item.updated_at),
-      ward_number: wardRelation?.number ?? null,
+      ward_number: getWardNumber(wardRelation) ?? null,
       category_name_ta: categoryRelation?.name_ta ?? null,
     };
   });

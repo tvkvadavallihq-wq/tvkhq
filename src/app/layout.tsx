@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="ta">
-      <body className="min-h-screen antialiased">
+      <body className="min-h-screen bg-background text-foreground antialiased">
         <QueryProvider>
           <div className="min-h-screen">
             <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">

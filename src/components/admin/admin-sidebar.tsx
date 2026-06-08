@@ -16,7 +16,7 @@ export function AdminSidebar({
 
   return (
     <aside className="border-b bg-card/90 lg:min-h-screen lg:border-b-0 lg:border-r">
-      <div className="sticky top-0 flex h-full flex-col gap-6 p-4 lg:p-5">
+      <div className="flex h-full flex-col gap-5 p-4 lg:sticky lg:top-0 lg:min-h-screen lg:p-5">
         <Link href="/admin/dashboard" className="space-y-1">
           <p className="text-sm font-semibold text-primary">{APP_NAME}</p>
           <p className="text-lg font-black leading-5">{APP_NAME_TAMIL}</p>

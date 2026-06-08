@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 
 export function AdminLoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   const mutation = useMutation({
@@ -19,7 +19,7 @@ export function AdminLoginForm() {
       const response = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
 
       const payload = (await response.json()) as { ok: boolean; error?: string };
@@ -44,8 +44,8 @@ export function AdminLoginForm() {
             mutation.mutate();
           }}
         >
-          <Field id="email" label="மின்னஞ்சல்">
-            <Input id="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+          <Field id="username" label="Username">
+            <Input id="username" autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} />
           </Field>
           <Field id="password" label="கடவுச்சொல்">
             <Input
@@ -57,7 +57,7 @@ export function AdminLoginForm() {
             />
           </Field>
           {mutation.error ? <p className="text-sm font-semibold text-destructive">{mutation.error.message}</p> : null}
-          <Button type="submit" disabled={mutation.isPending || !email || !password}>
+          <Button type="submit" disabled={mutation.isPending || !username || !password}>
             {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <LogIn className="size-4" />}
             உள்நுழை
           </Button>

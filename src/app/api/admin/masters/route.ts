@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
+import { hash } from "bcryptjs";
 import { getAdminSession } from "@/lib/repositories/admin";
 import { recordAuditEvent } from "@/lib/services/audit";
 import { logError } from "@/lib/services/logger";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { checkRateLimit, getClientRateLimitKey, RATE_LIMITS } from "@/lib/security/rate-limit";
-import { sanitizeEmail } from "@/lib/security/sanitize";
+import { sanitizeUsername } from "@/lib/security/sanitize";
 import { MasterActionType, normalizeMasterActionValue } from "@/lib/repositories/admin-master";
 import { UserRole } from "@/lib/enums";
 import { adminUserToggleSchema, adminUserUpsertSchema } from "@/lib/validators";
@@ -15,6 +16,11 @@ function notAllowed() {
 
 function badRequest(message: string) {
   return NextResponse.json({ ok: false, error: message }, { status: 400 });
+}
+
+function isMissingColumnError(error: { message?: string } | null | undefined, column: string) {
+  const message = error?.message?.toLowerCase() ?? "";
+  return message.includes(`column "${column}" does not exist`) || message.includes(`column ${column} does not exist`);
 }
 
 function parseAction(action: string): MasterActionType | null {
@@ -191,52 +197,52 @@ export async function POST(request: Request) {
         }
 
         const payload = parsed.data;
-        const authUserId = payload.auth_user_id?.trim() || null;
-        let userId = authUserId;
+        const username = sanitizeUsername(payload.username);
+        const password = payload.password?.trim() ?? "";
+        const passwordHash = await hash(password, 10);
 
-        if (!userId) {
-          const email = sanitizeEmail(payload.email);
-          const password = payload.password?.trim() ?? "";
-
-          const { data: createdUser, error: createError } = await client.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-            user_metadata: {
-              full_name: payload.full_name,
-              phone: payload.phone || null,
-              role: payload.role,
-            },
-          });
-
-          if (createError || !createdUser.user) {
-            throw new Error(createError?.message ?? "Auth user உருவாக்க முடியவில்லை.");
-          }
-
-          userId = createdUser.user.id;
+        const { data: existingUser, error: lookupError } = await client.from("users").select("id").eq("username", username).maybeSingle();
+        if (lookupError) {
+          throw new Error(lookupError.message);
         }
 
-        const { error: profileError } = await client.from("users").upsert(
-          {
-            id: userId,
-            full_name: payload.full_name,
-            phone: payload.phone || null,
-            role: payload.role,
-            ward_id: payload.role === UserRole.SUPER_ADMIN ? null : payload.ward_id || null,
-            is_active: payload.is_active,
-          },
-          { onConflict: "id" },
-        );
+        const fullNameValues = {
+          username,
+          password_hash: passwordHash,
+          full_name: payload.full_name,
+          phone: payload.phone || null,
+          role: payload.role,
+          ward_id: payload.role === UserRole.SUPER_ADMIN ? null : payload.ward_id || null,
+          is_active: payload.is_active,
+        };
 
-        if (profileError) {
-          if (!authUserId && userId) {
-            await client.auth.admin.deleteUser(userId).catch(() => null);
-          }
-          throw new Error(profileError.message);
+        const nameValues = {
+          username,
+          password_hash: passwordHash,
+          name: payload.full_name,
+          phone: payload.phone || null,
+          role: payload.role,
+          ward_id: payload.role === UserRole.SUPER_ADMIN ? null : payload.ward_id || null,
+          is_active: payload.is_active,
+        };
+
+        const attemptWrite = async (values: Record<string, unknown>) =>
+          existingUser ? client.from("users").update(values).eq("id", existingUser.id) : client.from("users").insert(values);
+
+        let profileWrite = await attemptWrite(fullNameValues);
+        if (profileWrite.error && isMissingColumnError(profileWrite.error, "full_name")) {
+          profileWrite = await attemptWrite(nameValues);
         }
 
-        auditEntityId = userId;
-        resultMessage = authUserId ? "Auth user profile இணைக்கப்பட்டது." : "பயனர் உருவாக்கப்பட்டது.";
+        if (profileWrite.error) {
+          throw new Error(profileWrite.error.message);
+        }
+
+        const { data: savedUser } = existingUser
+          ? { data: existingUser }
+          : await client.from("users").select("id").eq("username", username).maybeSingle();
+        auditEntityId = savedUser?.id ?? null;
+        resultMessage = "பயனர் உருவாக்கப்பட்டது.";
         break;
       }
       case "toggle-user": {

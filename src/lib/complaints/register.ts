@@ -5,6 +5,7 @@ import { recordAuditEvent } from "@/lib/services/audit";
 import { notifyComplaintCreated } from "@/lib/services/notifications";
 import { logError } from "@/lib/services/logger";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { getAreaName, getAreaWardId, getAreaWardNumber, getWardNameTa, getWardNumber, matchesWardReference } from "@/lib/ward-utils";
 import { complaintSchema, type ComplaintFormValues } from "@/lib/validators";
 
 export type ComplaintRegistrationInput = ComplaintFormValues;
@@ -47,9 +48,14 @@ export async function registerComplaintSubmission(rawInput: unknown) {
   const address = sanitizeText(parsed.address);
   const description = sanitizeText(parsed.description);
 
-  const [{ data: category, error: categoryError }, { data: ward, error: wardError }] = await Promise.all([
+  const [
+    { data: category, error: categoryError },
+    { data: ward, error: wardError },
+    { data: areaRows, error: areaError },
+  ] = await Promise.all([
     supabase.from("complaint_categories").select("id,name_ta").eq("id", parsed.category_id).single(),
-    supabase.from("wards").select("id,name_ta,number").eq("id", parsed.ward_id).single(),
+    supabase.from("wards").select("id,*").eq("id", parsed.ward_id).single(),
+    supabase.from("area_pocs").select("*,wards(*)").eq("area_name", areaName),
   ]);
 
   if (categoryError) {
@@ -58,6 +64,26 @@ export async function registerComplaintSubmission(rawInput: unknown) {
 
   if (wardError) {
     throw new Error("வார்டு விவரத்தைப் பெற முடியவில்லை.");
+  }
+
+  if (areaError) {
+    throw new Error("பகுதி விவரத்தைப் பெற முடியவில்லை.");
+  }
+
+  const wardNumber = getWardNumber(ward as any);
+  const matchingArea =
+    (areaRows ?? []).find((item: unknown) => {
+      const candidate = item as Record<string, unknown> & { wards?: unknown };
+      const candidateWardId = getAreaWardId(candidate as any);
+      const candidateWardNumber = getAreaWardNumber(candidate as any);
+      return (
+        matchesWardReference(candidateWardId, parsed.ward_id, wardNumber) ||
+        (wardNumber !== null && candidateWardNumber === wardNumber)
+      );
+    }) ?? null;
+
+  if (!matchingArea) {
+    throw new Error("தேர்ந்த பகுதி அந்த வார்டில் கிடைக்கவில்லை.");
   }
 
   const created = await supabase
@@ -71,7 +97,7 @@ export async function registerComplaintSubmission(rawInput: unknown) {
       address,
       gps_latitude: parsed.gps_latitude,
       gps_longitude: parsed.gps_longitude,
-      title: complaintTitle(category.name_ta, areaName),
+      title: complaintTitle(category.name_ta, getAreaName(matchingArea as any) ?? areaName),
       description,
       status: ComplaintStatus.NEW,
     })
@@ -141,7 +167,7 @@ export async function registerComplaintSubmission(rawInput: unknown) {
   void notifyComplaintCreated(
     { name: parsed.complainant_name, phone: complainantPhone },
     complaint.tracking_id,
-    (ward as any).name_ta,
+    getWardNameTa(ward as any) ?? "வார்டு",
     category.name_ta,
   );
 
@@ -149,8 +175,8 @@ export async function registerComplaintSubmission(rawInput: unknown) {
     complaintId: complaint.id,
     trackingId: complaint.tracking_id,
     categoryNameTa: category.name_ta,
-    wardNameTa: (ward as any).name_ta,
-    wardNumber: (ward as any).number,
+    wardNameTa: getWardNameTa(ward as any),
+    wardNumber: getWardNumber(ward as any),
     fileCount: filesToStore.length,
     imageCount: parsed.image_files.length,
     videoCount: parsed.video_files.length,

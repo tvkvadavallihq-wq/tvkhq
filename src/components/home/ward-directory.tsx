@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +17,7 @@ export function WardDirectory({
 }) {
   return (
     <div className="space-y-5">
-      <form className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-[1fr_220px_auto] md:items-end" method="get">
+      <form className="grid gap-3 rounded-3xl border bg-card p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_220px_auto] md:items-end" method="get">
         <div className="space-y-2">
           <label htmlFor="area" className="text-sm font-semibold">
             பகுதி மூலம் தேடுங்கள்
@@ -44,20 +43,20 @@ export function WardDirectory({
         </Button>
       </form>
 
-      <div className="grid gap-3">
+        <div className="grid gap-3">
         {wardContacts.length === 0 ? (
-          <Card>
+          <Card className="rounded-3xl">
             <CardContent className="p-5 text-sm text-muted-foreground">
               இந்த தேடலுக்கு பொருந்தும் வார்டு தொடர்புகள் இல்லை.
             </CardContent>
           </Card>
         ) : (
           wardContacts.map((contact) => (
-            <Card key={contact.id}>
+            <Card key={contact.id} className="rounded-3xl">
               <CardContent className="grid gap-4 p-5 md:grid-cols-[1.2fr_0.8fr] md:items-center">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-black text-primary">
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-black text-primary">
                       வார்டு {contact.ward_number ?? "-"}
                     </span>
                   </div>
@@ -67,7 +66,7 @@ export function WardDirectory({
                   {contact.area_name ? <p className="text-sm font-medium text-muted-foreground">பகுதி: {contact.area_name}</p> : null}
                 </div>
 
-                <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
+                <div className="space-y-2 rounded-2xl border bg-muted/30 p-4">
                   <ContactLine label="மொபைல்" value={contact.phone} href={`tel:${contact.phone}`} />
                   {contact.whatsapp ? <ContactLine label="WhatsApp" value={contact.whatsapp} href={`https://wa.me/${contact.whatsapp.replace(/\D/g, "")}`} /> : null}
                 </div>

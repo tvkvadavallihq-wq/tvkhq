@@ -21,6 +21,10 @@ export function sanitizeEmail(value: string | null | undefined) {
   return sanitizeText(value).toLowerCase().replace(/\s+/g, "");
 }
 
+export function sanitizeUsername(value: string | null | undefined) {
+  return sanitizeText(value).toLowerCase().replace(/\s+/g, "");
+}
+
 export function sanitizeSearchTerm(value: string | null | undefined) {
   return sanitizeText(value).slice(0, 120);
 }

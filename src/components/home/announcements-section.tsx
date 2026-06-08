@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Megaphone } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { SectionHeading } from "@/components/home/section-heading";
@@ -14,8 +13,8 @@ export function AnnouncementsSection({
 }) {
   return (
     <section className="mx-auto max-w-6xl px-4 py-10">
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+        <Card className="overflow-hidden rounded-3xl">
           <CardContent className="space-y-5 p-5 sm:p-6">
             <SectionHeading
               eyebrow="அண்மை புதுப்பிப்புகள்"
@@ -27,7 +26,7 @@ export function AnnouncementsSection({
                 <p className="text-sm text-muted-foreground">தற்போது புதிய அறிவிப்புகள் இல்லை.</p>
               ) : (
                 announcements.map((announcement) => (
-                  <article key={announcement.id} className="rounded-lg border p-4">
+                  <article key={announcement.id} className="rounded-2xl border bg-background p-4 shadow-sm">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">
                       <Megaphone className="size-3.5" />
                       புதுப்பிப்பு
@@ -41,7 +40,7 @@ export function AnnouncementsSection({
           </CardContent>
         </Card>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="space-y-1 px-1">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">பேனர்</p>
             <h2 className="text-2xl font-black tracking-tight sm:text-3xl">Banner Carousel</h2>

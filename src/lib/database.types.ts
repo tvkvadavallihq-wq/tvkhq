@@ -88,8 +88,30 @@ export interface Database {
         Relationships: [];
       };
       users: {
-        Row: { id: string; full_name: string; phone: string | null; role: UserRole; ward_id: string | null; is_active: boolean; created_at: string; updated_at: string };
-        Insert: { id: string; full_name: string; phone?: string | null; role: UserRole; ward_id?: string | null; is_active?: boolean; created_at?: string; updated_at?: string };
+        Row: {
+          id: string;
+          username: string | null;
+          password_hash: string | null;
+          full_name: string;
+          phone: string | null;
+          role: UserRole;
+          ward_id: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          username?: string | null;
+          password_hash?: string | null;
+          full_name: string;
+          phone?: string | null;
+          role: UserRole;
+          ward_id?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
         Update: Partial<Database["public"]["Tables"]["users"]["Insert"]>;
         Relationships: [];
       };

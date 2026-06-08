@@ -49,23 +49,23 @@ export function AdminMasterDataManager({
   return (
     <div className="space-y-5">
       {canManageGlobal ? (
-        <SectionCard title="நிர்வாக பயனர்கள்" helper="Supabase Auth + public.users" action={renderUserForm(mutation, data.wards)}>
+        <SectionCard title="நிர்வாக பயனர்கள்" helper="Local username + password hash in public.users" action={renderUserForm(mutation, data.wards)}>
           <div className="space-y-3">
             {data.users.map((user) => (
               <MasterRow
                 key={user.id}
                 title={user.full_name}
                 meta={[
-                  user.email ?? "Auth only",
+                  user.username ?? "username missing",
                   userRoleTamil[user.role],
                   user.ward_number ? `Ward ${user.ward_number}` : null,
-                  user.has_profile ? null : "Profile missing",
+                  user.has_credentials ? null : "Password hash missing",
                   user.id.slice(0, 8),
                 ]
                   .filter(Boolean)
                   .join(" · ")}
-                active={user.has_profile ? user.is_active : false}
-                canToggle={user.has_profile}
+                active={user.is_active}
+                canToggle
                 onToggle={() => mutateToggle(mutation, "toggle-user", user.id, user.is_active)}
               />
             ))}
@@ -168,9 +168,8 @@ export function AdminMasterDataManager({
 function renderUserForm(mutation: FormMutation, wards: AdminMasterData["wards"]) {
   return (
     <form className="grid gap-3 md:grid-cols-2" onSubmit={(event) => handleSubmit(event, mutation, "create-user")}>
-      <Input name="auth_user_id" placeholder="Existing Auth UUID (optional)" className="md:col-span-2" />
-      <Input name="email" type="email" placeholder="Email" />
-      <Input name="password" type="password" placeholder="Temporary password" />
+      <Input name="username" placeholder="Username" required />
+      <Input name="password" type="password" placeholder="Password" required />
       <Input name="full_name" placeholder="Full name" required />
       <Input name="phone" placeholder="Mobile number" />
       <select name="role" required className="h-10 w-full rounded-md border bg-background px-3 text-sm">
@@ -195,7 +194,7 @@ function renderUserForm(mutation: FormMutation, wards: AdminMasterData["wards"])
       </select>
       <div className="md:col-span-2">
         <p className="text-xs leading-5 text-muted-foreground">
-          Existing Auth UUID இருந்தால் அது உள்ள கணக்குடன் profile இணைக்கப்படும். UUID இல்லையெனில் புதிய Supabase Auth user + public.users row உருவாகும்.
+          Username + password hash public.users-இல் சேமிக்கப்படும். இதுவே admin login-க்கு பயன்படும்.
         </p>
       </div>
       <div className="md:col-span-2">

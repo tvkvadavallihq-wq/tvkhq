@@ -3,6 +3,7 @@ import { UserRole } from "@/lib/enums";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { sanitizeSlug, sanitizeText } from "@/lib/security/sanitize";
 import type { AdminProfile } from "@/lib/repositories/admin";
+import { getWardNumber } from "@/lib/ward-utils";
 
 type SupabaseClient = any;
 
@@ -57,15 +58,14 @@ export type AdminBannerRow = {
 
 export type AdminUserRow = {
   id: string;
-  email: string | null;
+  username: string | null;
   full_name: string;
   phone: string | null;
   role: UserRole;
   ward_id: string | null;
   ward_number: number | null;
   is_active: boolean;
-  has_profile: boolean;
-  auth_created_at: string | null;
+  has_credentials: boolean;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -100,63 +100,28 @@ async function safeQuery<T>(fn: () => Promise<{ data: T[] | null; error: { messa
 }
 
 async function loadAdminUsers(client: SupabaseClient): Promise<AdminUserRow[]> {
-  const [authUsersResult, profiles] = await Promise.all([
-    client.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-    safeQuery<any>(() => client.from("users").select("id,full_name,phone,role,ward_id,is_active,created_at,updated_at,wards(number)").order("created_at", { ascending: false })),
-  ]);
+  const profiles = await safeQuery<any>(() =>
+    client
+      .from("users")
+      .select("*,wards(*)")
+      .order("created_at", { ascending: false }),
+  );
 
-  const authUsers = (authUsersResult as { data?: { users?: Array<{ id: string; email?: string | null; created_at?: string | null }> } })?.data?.users ?? [];
-  const profilesById = new Map(
-    (profiles ?? []).map((row: any) => {
+  return profiles
+    .map((row: any) => {
       const wardRelation = Array.isArray(row.wards) ? row.wards[0] ?? null : row.wards ?? null;
-      return [
-        String(row.id),
-        {
-          id: String(row.id),
-          full_name: String(row.full_name ?? ""),
-          phone: row.phone ?? null,
-          role: row.role,
-          ward_id: row.ward_id ?? null,
-          ward_number: wardRelation?.number ?? null,
-          is_active: row.is_active,
-          created_at: row.created_at ?? null,
-          updated_at: row.updated_at ?? null,
-        } as const,
-      ] as const;
-    }),
-  );
-
-  const authUsersById = new Map(
-    authUsers.map((user: any) => [
-      String(user.id),
-      {
-        id: String(user.id),
-        email: user.email ?? null,
-        auth_created_at: user.created_at ?? null,
-      },
-    ]),
-  );
-
-  const ids = new Set([...profilesById.keys(), ...authUsersById.keys()]);
-
-  return Array.from(ids)
-    .map((id) => {
-      const profile = profilesById.get(id) ?? null;
-      const auth = authUsersById.get(id) ?? null;
-
       return {
-        id: String(id),
-        email: auth?.email ?? null,
-        full_name: profile?.full_name ?? auth?.email ?? "Unknown user",
-        phone: profile?.phone ?? null,
-        role: profile?.role ?? UserRole.VOLUNTEER,
-        ward_id: profile?.ward_id ?? null,
-        ward_number: profile?.ward_number ?? null,
-        is_active: profile?.is_active ?? false,
-        has_profile: Boolean(profile),
-        auth_created_at: auth?.auth_created_at ?? null,
-        created_at: profile?.created_at ?? null,
-        updated_at: profile?.updated_at ?? null,
+        id: String(row.id),
+        username: row.username ?? null,
+        full_name: String(row.full_name ?? row.name ?? row.username ?? ""),
+        phone: row.phone ?? null,
+        role: row.role,
+        ward_id: row.ward_id ?? null,
+        ward_number: getWardNumber(wardRelation) ?? null,
+        is_active: row.is_active,
+        has_credentials: Boolean(row.password_hash),
+        created_at: row.created_at ?? null,
+        updated_at: row.updated_at ?? null,
       } satisfies AdminUserRow;
     })
     .sort((a, b) => a.full_name.localeCompare(b.full_name));
@@ -172,7 +137,7 @@ export async function getAdminMasterData(profile: AdminProfile): Promise<AdminMa
   const wardFilter = profile.ward_id;
 
   const wards = await safeQuery<AdminWardRow>(() =>
-    client.from("wards").select("id,number,name_ta,name_en,is_active,created_at").order("number"),
+    client.from("wards").select("id,*").order("created_at", { ascending: false }),
   );
 
   const categories = canManageGlobal
@@ -184,7 +149,7 @@ export async function getAdminMasterData(profile: AdminProfile): Promise<AdminMa
   const pocs = await safeQuery<AdminPocRow>(() =>
     client
       .from("area_pocs")
-      .select("id,ward_id,name,phone,area_name,is_active,created_at,wards(number)")
+      .select("id,ward_id,name,phone,area_name,is_active,created_at,wards(*)")
       .order("created_at", { ascending: false }),
   ).then((rows) =>
     rows
@@ -193,7 +158,7 @@ export async function getAdminMasterData(profile: AdminProfile): Promise<AdminMa
         return {
           id: row.id,
           ward_id: row.ward_id,
-          ward_number: wardRelation?.number ?? null,
+          ward_number: getWardNumber(wardRelation) ?? null,
           name: row.name,
           phone: row.phone,
           area_name: row.area_name,
@@ -278,8 +243,7 @@ export function normalizeMasterActionValue(action: MasterActionType, formData: F
       };
     case "create-user":
       return {
-        auth_user_id: sanitizeText(String(formData.get("auth_user_id") ?? "")) || null,
-        email: sanitizeText(String(formData.get("email") ?? "")) || null,
+        username: sanitizeText(String(formData.get("username") ?? "")) || null,
         password: sanitizeText(String(formData.get("password") ?? "")) || null,
         full_name: sanitizeText(String(formData.get("full_name") ?? "")),
         phone: sanitizeText(String(formData.get("phone") ?? "")) || null,

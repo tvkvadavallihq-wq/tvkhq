@@ -4,6 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import type { AdminProfile } from "@/lib/repositories/admin";
 import type { ComplaintFilterOptions } from "@/lib/repositories/complaints";
 import { getComplaintFilterOptions } from "@/lib/repositories/complaints";
+import { getWardNumber } from "@/lib/ward-utils";
 
 type SupabaseClient = any;
 
@@ -227,7 +228,7 @@ async function getUsersMap(client: SupabaseClient, ids: string[]) {
 
   const { data } = await client
     .from("users")
-    .select("id,full_name,phone,role,ward_id,wards(number)")
+    .select("id,full_name,phone,role,ward_id,wards(*)")
     .in("id", uniqueIds);
 
   const map: Record<string, AdminComplaintUser> = {};
@@ -240,7 +241,7 @@ async function getUsersMap(client: SupabaseClient, ids: string[]) {
       phone: user.phone ?? null,
       role: user.role,
       ward_id: user.ward_id ?? null,
-      ward_number: wardRelation?.number ?? null,
+      ward_number: getWardNumber(wardRelation) ?? null,
     };
   });
 
@@ -280,13 +281,10 @@ export async function getAdminComplaintList(
   const order = filters.order ?? "desc";
   const scopeQuery = (q: any) => applyScope(q, profile);
 
-  let query = scopeQuery(
-      client
-      .from("complaints")
-      .select("id,complaint_number,mobile,title,address,current_status,priority,created_at,updated_at,resolved_at,ward_id,category_id,wards(number),complaint_categories(name_ta)", {
-        count: "exact",
-      }),
-  );
+  const selectBase =
+    "id,complaint_number,mobile,title,address,current_status,priority,created_at,updated_at,ward_id,category_id,wards(*),complaint_categories(name_ta)";
+
+  let query = scopeQuery(client.from("complaints").select(selectBase, { count: "exact" }));
 
   if (filters.q) {
     const q = filters.q.trim().replace(/,/g, " ");
@@ -332,11 +330,11 @@ export async function getAdminComplaintList(
       address: item.address,
       current_status: item.current_status,
       priority: item.priority,
-      ward_number: wardRelation?.number ?? null,
+      ward_number: getWardNumber(wardRelation) ?? null,
       category_name_ta: categoryRelation?.name_ta ?? null,
       created_at: item.created_at,
       updated_at: item.updated_at,
-      resolved_at: item.resolved_at ?? null,
+      resolved_at: null,
     };
   });
 
@@ -364,16 +362,20 @@ export async function getAdminComplaintDetail(
 
   const client = getClient();
 
-  const complaintQuery = applyScope(
-    client
-      .from("complaints")
-      .select(
-        "id,complaint_number,mobile,title,address,latitude,longitude,description,current_status,priority,ward_id,category_id,created_at,updated_at,resolved_at,wards(number),complaint_categories(name_ta)",
-      ),
-    profile,
-  );
-  const [{ data: complaint }, { data: assignments }, { data: statusHistory }, { data: media }] = await Promise.all([
-    complaintQuery.eq("id", complaintId).maybeSingle(),
+  const complaintSelectBase =
+    "id,complaint_number,mobile,title,address,latitude,longitude,description,current_status,priority,ward_id,category_id,created_at,updated_at,wards(*),complaint_categories(name_ta)";
+
+  const complaintResult = await applyScope(client.from("complaints").select(complaintSelectBase), profile)
+    .eq("id", complaintId)
+    .maybeSingle();
+  let complaint = complaintResult.data ?? null;
+  const complaintError = complaintResult.error;
+
+  if (complaintError) {
+    throw new Error(complaintError.message);
+  }
+
+  const [{ data: assignments }, { data: statusHistory }, { data: media }] = await Promise.all([
     client.from("complaint_assignments").select("id,complaint_id,assigned_to,assigned_by,assigned_by_role,assigned_to_role,remarks,created_at").eq("complaint_id", complaintId).order("created_at"),
     client.from("complaint_status_history").select("id,complaint_id,from_status,to_status,activity_type,remarks,created_by,changed_by,created_at").eq("complaint_id", complaintId).order("created_at"),
     client.from("complaint_media").select("id,complaint_id,bucket,storage_path,file_url,media_stage,media_type,caption,uploaded_by,created_at").eq("complaint_id", complaintId).order("created_at"),
@@ -470,8 +472,8 @@ export async function getAdminComplaintDetail(
           category_id: complaint.category_id,
           created_at: complaint.created_at,
           updated_at: complaint.updated_at,
-          resolved_at: complaint.resolved_at,
-          ward_number: wardRelation?.number ?? null,
+          resolved_at: null,
+          ward_number: getWardNumber(wardRelation) ?? null,
           category_name_ta: categoryRelation?.name_ta ?? null,
         }
       : null,
@@ -507,7 +509,7 @@ export async function getAdminComplaintActionConfig(
       ? []
       : (await client
           .from("users")
-          .select("id,full_name,phone,role,ward_id,wards(number)")
+          .select("id,full_name,phone,role,ward_id,wards(*)")
           .eq("is_active", true)
         .eq("role", targetRole)
         .order("full_name")).data?.map((user: any) => {
@@ -518,7 +520,7 @@ export async function getAdminComplaintActionConfig(
             phone: user.phone ?? null,
             role: user.role,
             ward_id: user.ward_id ?? null,
-            ward_number: wardRelation?.number ?? null,
+            ward_number: getWardNumber(wardRelation) ?? null,
           };
         }) ?? [];
 

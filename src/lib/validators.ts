@@ -117,14 +117,23 @@ export const adminComplaintMediaUploadSchema = z.object({
 });
 
 export const adminLoginSchema = z.object({
-  email: z.string().email("சரியான email-ஐ உள்ளிடவும்"),
+  username: z
+    .string()
+    .trim()
+    .min(3, "Username-ஐ உள்ளிடவும்")
+    .max(80, "Username அதிகபட்சம் 80 எழுத்துகள்")
+    .regex(/^[a-zA-Z0-9._@-]+$/, "சரியான username-ஐ உள்ளிடவும்"),
   password: z.string().min(1, "கடவுச்சொல்லை உள்ளிடவும்"),
 });
 
 export const adminUserUpsertSchema = z
   .object({
-    auth_user_id: z.string().uuid("சரியான Auth user ID-ஐ உள்ளிடவும்").optional().or(z.literal("")),
-    email: z.string().email("சரியான email-ஐ உள்ளிடவும்").optional().or(z.literal("")),
+    username: z
+      .string()
+      .trim()
+      .min(3, "Username-ஐ உள்ளிடவும்")
+      .max(80, "Username அதிகபட்சம் 80 எழுத்துகள்")
+      .regex(/^[a-zA-Z0-9._@-]+$/, "சரியான username-ஐ உள்ளிடவும்"),
     password: z.string().min(8, "கடவுச்சொல் குறைந்தபட்சம் 8 எழுத்துகள்").optional().or(z.literal("")),
     full_name: z.string().trim().min(2, "பெயரை உள்ளிடவும்").max(120, "பெயர் அதிகபட்சம் 120 எழுத்துகள்"),
     phone: z.string().trim().regex(/^[6-9]\d{9}$/, "சரியான மொபைல் எண்ணை உள்ளிடவும்").optional().or(z.literal("")),
@@ -135,26 +144,23 @@ export const adminUserUpsertSchema = z
     is_active: z.coerce.boolean().default(true),
   })
   .superRefine((value, ctx) => {
-    const authUserId = value.auth_user_id?.trim();
-    const email = value.email?.trim();
+    const username = value.username?.trim();
     const password = value.password?.trim();
 
-    if (!authUserId) {
-      if (!email) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Email தேவை",
-          path: ["email"],
-        });
-      }
+    if (!username) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Username தேவை",
+        path: ["username"],
+      });
+    }
 
-      if (!password) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "கடவுச்சொல் தேவை",
-          path: ["password"],
-        });
-      }
+    if (!password) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "கடவுச்சொல் தேவை",
+        path: ["password"],
+      });
     }
 
     if (value.role !== UserRole.SUPER_ADMIN && !value.ward_id) {

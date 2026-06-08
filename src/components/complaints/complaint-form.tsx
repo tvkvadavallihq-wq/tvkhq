@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowRight, FileImage, FileVideo2, Loader2, LocateFixed, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -17,7 +17,7 @@ import { complaintSchema, type ComplaintFormValues } from "@/lib/validators";
 
 type Option = { id: string; name_ta: string };
 type WardOption = { id: string; ward_number: number };
-type AreaOption = { id: string; ward_id: string | null; ward_number: number | null; area_name: string };
+type AreaOption = { id: string; ward_id: string | null; area_name: string };
 
 type UploadFileListProps = {
   files: File[];
@@ -112,7 +112,6 @@ function ComplaintLocationSection({
   register,
   errors,
   wards,
-  areas,
   requestCurrentLocation,
   isLocating,
   locationError,
@@ -122,14 +121,33 @@ function ComplaintLocationSection({
   register: ReturnType<typeof useForm<ComplaintFormValues>>["register"];
   errors: ReturnType<typeof useForm<ComplaintFormValues>>["formState"]["errors"];
   wards: WardOption[];
-  areas: AreaOption[];
   requestCurrentLocation: () => Promise<{ latitude: number; longitude: number } | null>;
   isLocating: boolean;
   locationError: string | null;
   setValue: ReturnType<typeof useForm<ComplaintFormValues>>["setValue"];
   selectedWardId: string;
 }) {
-  const visibleAreas = areas.filter((area) => !selectedWardId || area.ward_id === selectedWardId);
+  const visibleAreasQuery = useQuery({
+    queryKey: ["complaint-areas", selectedWardId],
+    queryFn: async () => {
+      if (!selectedWardId) {
+        return [] as AreaOption[];
+      }
+
+      const response = await fetch(`/api/complaints/areas?ward_id=${encodeURIComponent(selectedWardId)}`);
+      const payload = (await response.json()) as { ok: true; areas: AreaOption[] } | { ok: false; error: string };
+
+      if (!response.ok || !("ok" in payload) || !payload.ok) {
+        throw new Error("இந்த வார்டின் பகுதிகளைப் பெற முடியவில்லை.");
+      }
+
+      return payload.areas ?? [];
+    },
+    enabled: Boolean(selectedWardId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const visibleAreas = selectedWardId ? visibleAreasQuery.data ?? [] : [];
 
   return (
     <Card>
@@ -147,17 +165,29 @@ function ComplaintLocationSection({
                 </option>
               ))}
             </select>
+            {wards.length === 0 ? <p className="mt-2 text-xs text-muted-foreground">வார்டு பட்டியல் இன்னும் கிடைக்கவில்லை.</p> : null}
           </Field>
           <Field id="area_name" label="Area" error={errors.area_name?.message}>
-            <select id="area_name" className="h-10 w-full rounded-md border bg-background px-3 text-sm" {...register("area_name")}>
+            <select
+              id="area_name"
+              className="h-10 w-full rounded-md border bg-background px-3 text-sm disabled:cursor-not-allowed disabled:bg-muted"
+              disabled={!selectedWardId || visibleAreasQuery.isLoading}
+              {...register("area_name")}
+            >
               <option value="">Select area</option>
               {visibleAreas.map((area) => (
                 <option key={area.id} value={area.area_name}>
-                  {area.ward_number ? `வார்டு ${area.ward_number} · ` : ""}
                   {area.area_name}
                 </option>
               ))}
             </select>
+            {!selectedWardId ? (
+              <p className="mt-2 text-xs text-muted-foreground">முதலில் வார்டை தேர்வு செய்யவும்.</p>
+            ) : visibleAreasQuery.isLoading ? (
+              <p className="mt-2 text-xs text-muted-foreground">பகுதிகள் ஏற்றப்படுகிறது...</p>
+            ) : visibleAreas.length === 0 ? (
+              <p className="mt-2 text-xs text-muted-foreground">இந்த வார்டுக்கு பகுதி விவரம் இல்லை.</p>
+            ) : null}
           </Field>
         </div>
 
@@ -309,7 +339,7 @@ function ComplaintMediaSection({
   );
 }
 
-export function ComplaintForm({ wards, categories, areas }: { wards: WardOption[]; categories: Option[]; areas: AreaOption[] }) {
+export function ComplaintForm({ wards, categories }: { wards: WardOption[]; categories: Option[] }) {
   const router = useRouter();
   const location = useCurrentLocation();
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -347,15 +377,11 @@ export function ComplaintForm({ wards, categories, areas }: { wards: WardOption[
   const complaintSummary = selectedCategory ? `${selectedCategory.name_ta} - ${selectedAreaName ?? ""}`.trim() : "";
 
   useEffect(() => {
-    if (!selectedWardId || !selectedAreaName) {
+    if (!selectedWardId) {
       return;
     }
-
-    const areaStillValid = areas.some((area) => area.ward_id === selectedWardId && area.area_name === selectedAreaName);
-    if (!areaStillValid) {
-      setValue("area_name", "", { shouldValidate: true, shouldDirty: true });
-    }
-  }, [areas, selectedAreaName, selectedWardId, setValue]);
+    setValue("area_name", "", { shouldValidate: true, shouldDirty: true });
+  }, [selectedWardId, setValue]);
 
   const mutation = useMutation({
     mutationFn: async (values: ComplaintFormValues) => {
@@ -421,7 +447,6 @@ export function ComplaintForm({ wards, categories, areas }: { wards: WardOption[
           register={register}
           errors={errors}
           wards={wards}
-          areas={areas}
           requestCurrentLocation={location.requestLocation}
           isLocating={location.isLocating}
           locationError={location.locationError}

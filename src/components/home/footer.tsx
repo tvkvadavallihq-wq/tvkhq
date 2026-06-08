@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Facebook, Instagram, MessageSquareMore, PhoneCall, Twitter } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { HomepageBanner, HomepageWardContact } from "@/lib/repositories/public";

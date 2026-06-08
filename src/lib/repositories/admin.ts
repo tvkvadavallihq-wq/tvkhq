@@ -1,10 +1,13 @@
 import { isSupabaseConfigured } from "@/lib/env";
 import { ComplaintStatus, UserRole } from "@/lib/enums";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/admin-session";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { getWardNumber } from "@/lib/ward-utils";
 
 export type AdminProfile = {
   id: string;
+  username?: string | null;
   full_name: string;
   phone: string | null;
   role: UserRole;
@@ -36,7 +39,7 @@ export type AdminChartDatum = {
 };
 
 export type AdminDashboardResult = {
-  user: { id: string; email?: string | null } | null;
+  user: { id: string; username?: string | null } | null;
   profile: AdminProfile | null;
   metrics: {
     total: number;
@@ -82,20 +85,19 @@ export async function getAdminSession() {
     return { user: null, profile: null };
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value ?? null;
+  const userId = await verifyAdminSessionToken(token);
 
-  if (!user) {
+  if (!userId) {
     return { user: null, profile: null };
   }
 
   const service = getServiceClient();
   const { data: profile } = await service
     .from("users")
-    .select("id,full_name,phone,role,ward_id,is_active")
-    .eq("id", user.id)
+    .select("*")
+    .eq("id", userId)
     .eq("is_active", true)
     .maybeSingle();
 
@@ -105,14 +107,19 @@ export async function getAdminSession() {
 
   let wardNumber: number | null = null;
   if (profile.ward_id) {
-    const { data: ward } = await service.from("wards").select("number").eq("id", profile.ward_id).maybeSingle();
-    wardNumber = ward?.number ?? null;
+    const { data: ward } = await service.from("wards").select("id,*").eq("id", profile.ward_id).maybeSingle();
+    wardNumber = getWardNumber(ward) ?? null;
   }
 
   return {
-    user: { id: user.id, email: user.email ?? null },
+    user: { id: userId, username: (profile as { username?: string | null } | null)?.username ?? null },
     profile: {
       ...(profile as AdminProfile),
+      full_name:
+        (profile as { full_name?: string | null; name?: string | null; username?: string | null } | null)?.full_name ??
+        (profile as { name?: string | null; username?: string | null } | null)?.name ??
+        (profile as { username?: string | null } | null)?.username ??
+        "Admin",
       ward_number: wardNumber,
     },
   };
@@ -159,7 +166,7 @@ export async function getAdminDashboard(): Promise<AdminDashboardResult> {
       service
         .from("complaints")
         .select(
-          "id,complaint_number,title,address,current_status,priority,created_at,updated_at,ward_id,category_id,wards(number),complaint_categories(name_ta)",
+          "id,complaint_number,title,address,current_status,priority,created_at,updated_at,ward_id,category_id,wards(*),complaint_categories(name_ta)",
         )
         .order("created_at", { ascending: false }),
     );
@@ -193,7 +200,7 @@ export async function getAdminDashboard(): Promise<AdminDashboardResult> {
       ? complaint.complaint_categories[0] ?? null
       : complaint.complaint_categories ?? null;
 
-    const wardLabel = wardRelation?.number ? `Ward ${wardRelation.number}` : "Unassigned";
+    const wardLabel = getWardNumber(wardRelation) !== null ? `Ward ${getWardNumber(wardRelation)}` : "Unassigned";
     wardCounts.set(wardLabel, (wardCounts.get(wardLabel) ?? 0) + 1);
 
     const categoryLabel = categoryRelation?.name_ta ?? "Uncategorized";
@@ -232,7 +239,7 @@ export async function getAdminDashboard(): Promise<AdminDashboardResult> {
       status: complaint.current_status,
       priority: complaint.priority,
       created_at: complaint.created_at,
-      ward_number: wardRelation?.number ?? null,
+      ward_number: getWardNumber(wardRelation) ?? null,
       category_name_ta: categoryRelation?.name_ta ?? null,
     };
   });

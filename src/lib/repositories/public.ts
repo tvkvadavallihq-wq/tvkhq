@@ -1,5 +1,7 @@
 import { isSupabaseConfigured } from "@/lib/env";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { getWardNumber } from "@/lib/ward-utils";
+import { unstable_noStore as noStore } from "next/cache";
 
 export type HomepageSearchParams = {
   area?: string;
@@ -47,6 +49,17 @@ export type HomepageContent = {
   stats: HomepageStats;
 };
 
+type RawWardRow = { id: string; number?: number | string | null; ward_number?: number | string | null };
+type RawWardContactRow = {
+  id: string;
+  name: string;
+  designation_ta: string;
+  phone: string;
+  whatsapp: string | null;
+  address: string | null;
+  ward_id: string | null;
+};
+
 function resolutionRate(total: number, resolved: number) {
   if (total <= 0) {
     return 0;
@@ -65,11 +78,11 @@ export async function getPublicHomeContent(searchParams: HomepageSearchParams = 
     } satisfies HomepageContent;
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseServiceClient() as any;
   const normalizedArea = searchParams.area?.trim();
   const normalizedWard = searchParams.ward?.trim();
 
-  const [bannersResult, announcementsResult, contactsResult, totalResult, resolvedResult, pendingResult] = await Promise.all([
+  const [bannersResult, announcementsResult, contactsResult, wardsResult, totalResult, resolvedResult, pendingResult] = await Promise.all([
     supabase.from("banners").select("id,title_ta,image_path,link_url").order("created_at", { ascending: false }).limit(5),
     supabase
       .from("announcements")
@@ -77,19 +90,23 @@ export async function getPublicHomeContent(searchParams: HomepageSearchParams = 
       .order("published_at", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(6),
-    supabase
-      .from("ward_contacts")
-      .select("id,name,designation_ta,phone,whatsapp,address,ward_id,wards!ward_contacts_ward_id_fkey(number)")
-      .order("created_at", { ascending: false }),
+    supabase.from("ward_contacts").select("id,name,designation_ta,phone,whatsapp,address,ward_id").order("created_at", { ascending: false }),
+    supabase.from("wards").select("id,*").eq("is_active", true),
     supabase.from("complaints").select("id", { count: "exact", head: true }),
     supabase.from("complaints").select("id", { count: "exact", head: true }).in("current_status", ["RESOLVED", "CLOSED"]),
     supabase.from("complaints").select("id", { count: "exact", head: true }).in("current_status", ["NEW", "VERIFIED", "ASSIGNED", "IN_PROGRESS", "WAITING_GOVT"]),
   ]);
 
-  const wardContacts = (contactsResult.data ?? [])
-    .map((contact) => {
-      const wardRelation = Array.isArray(contact.wards) ? contact.wards[0] : contact.wards;
+  const wardNumberById = new Map<string, number>();
+  (wardsResult.data ?? []).forEach((ward: any) => {
+    const wardNumber = getWardNumber(ward);
+    if (wardNumber !== null) {
+      wardNumberById.set(String(ward.id), wardNumber);
+    }
+  });
 
+  const wardContacts = (contactsResult.data ?? [])
+    .map((contact: RawWardContactRow) => {
       return {
         id: contact.id,
         name: contact.name,
@@ -99,11 +116,11 @@ export async function getPublicHomeContent(searchParams: HomepageSearchParams = 
         address: contact.address ?? null,
         area_name: null,
         ward_id: contact.ward_id ?? null,
-        ward_number: wardRelation?.number ?? null,
+        ward_number: contact.ward_id ? wardNumberById.get(String(contact.ward_id)) ?? null : null,
         ward_name_ta: null,
       };
     })
-    .filter((contact) => {
+    .filter((contact: HomepageWardContact) => {
       if (!normalizedArea && !normalizedWard) {
         return true;
       }
@@ -136,49 +153,58 @@ export async function getPublicHomeContent(searchParams: HomepageSearchParams = 
   } satisfies HomepageContent;
 }
 
-export async function getComplaintFormOptions() {
+export async function getComplaintFormOptions(): Promise<{
+  wards: Array<{ id: string; ward_number: number }>;
+  categories: Array<{ id: string; name_ta: string }>;
+}> {
+  noStore();
   if (!isSupabaseConfigured()) {
-    return { wards: [], categories: [], areas: [] };
+    return { wards: [], categories: [] };
   }
 
-  const supabase = await createSupabaseServerClient();
-  const [{ data: wards }, { data: categories }, { data: areas }] = await Promise.all([
-    supabase.from("wards").select("id,number").order("number"),
+  const supabase = createSupabaseServiceClient() as any;
+  const [{ data: wards }, { data: categories }] = await Promise.all([
+    supabase.from("wards").select("id,*").order("id"),
     supabase.from("complaint_categories").select("id,name_ta").eq("is_active", true).order("name_ta"),
-    supabase
-      .from("area_pocs")
-      .select("id,ward_id,area_name,wards!area_pocs_ward_id_fkey(number)")
-      .eq("is_active", true)
-      .order("area_name"),
   ]);
 
-  const normalizedAreas = Array.from(
-    new Map(
-      (areas ?? [])
-        .map((area: any) => {
-          const wardRelation = Array.isArray(area.wards) ? area.wards[0] ?? null : area.wards ?? null;
-          return [
-            `${area.ward_id}:${area.area_name}`,
-            {
-              id: String(area.id),
-              ward_id: area.ward_id ?? null,
-              ward_number: wardRelation?.number ?? null,
-              area_name: area.area_name,
-            },
-          ] as const;
-        })
-        .filter(([, area]) => Boolean(area.area_name)),
-    ).values(),
-  ).sort((a, b) => {
-    const wardDiff = (a.ward_number ?? 0) - (b.ward_number ?? 0);
-    return wardDiff !== 0 ? wardDiff : a.area_name.localeCompare(b.area_name);
-  });
+  const wardOptions: Array<{ id: string; ward_number: number }> = (wards ?? [])
+    .map((ward: RawWardRow) => ({ id: ward.id, ward_number: getWardNumber(ward) ?? 0 }))
+    .sort((a: { id: string; ward_number: number }, b: { id: string; ward_number: number }) => a.ward_number - b.ward_number);
 
   return {
-    wards: (wards ?? []).map((ward: any) => ({ id: ward.id, ward_number: ward.number })),
-    categories: categories ?? [],
-    areas: normalizedAreas,
+    wards: wardOptions,
+    categories: (categories ?? []) as Array<{ id: string; name_ta: string }>,
   };
+}
+
+export async function getComplaintAreas(wardId: string) {
+  noStore();
+  if (!isSupabaseConfigured() || !wardId) {
+    return [];
+  }
+
+  const supabase = createSupabaseServiceClient() as any;
+  const { data } = await supabase
+    .from("area_pocs")
+    .select("id,ward_id,area_name,is_active")
+    .eq("ward_id", wardId)
+    .eq("is_active", true)
+    .order("area_name");
+
+  const seen = new Set<string>();
+  return (data ?? [])
+    .map((row: { id: string; ward_id: string | null; area_name: string }) => ({
+      id: row.id,
+      ward_id: row.ward_id ?? null,
+      area_name: row.area_name,
+    }))
+    .filter((row: { id: string; ward_id: string | null; area_name: string }) => {
+      const key = `${row.ward_id}:${row.area_name}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 export async function getPublicComplaints() {
@@ -186,10 +212,10 @@ export async function getPublicComplaints() {
     return [];
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseServiceClient() as any;
   const { data } = await supabase
     .from("complaints")
-    .select("id,complaint_number,title,address,current_status,created_at,updated_at,wards(number),complaint_categories(name_ta)")
+    .select("id,complaint_number,title,address,current_status,created_at,updated_at,wards(*),complaint_categories(name_ta)")
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -201,8 +227,12 @@ export async function getHomepageFilters(): Promise<{ wards: Array<{ id: string;
     return { wards: [] };
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.from("wards").select("id,number").order("number");
+  const supabase = createSupabaseServiceClient() as any;
+  const { data } = await supabase.from("wards").select("id,*").order("id");
 
-  return { wards: (data ?? []).map((ward: any) => ({ id: ward.id, ward_number: ward.number })) };
+  const wards = (data ?? [])
+    .map((ward: RawWardRow) => ({ id: ward.id, ward_number: getWardNumber(ward) ?? 0 }))
+    .sort((a: { id: string; ward_number: number }, b: { id: string; ward_number: number }) => a.ward_number - b.ward_number);
+
+  return { wards };
 }

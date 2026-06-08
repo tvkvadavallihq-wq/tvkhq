@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AnnouncementsSection } from "@/components/home/announcements-section";
 import { HeroSection } from "@/components/home/hero-section";
 import { HomeFooter } from "@/components/home/footer";
+import { LeadershipSection } from "@/components/home/leadership-section";
 import { SectionHeading } from "@/components/home/section-heading";
 import { StatisticsStrip } from "@/components/home/statistics-strip";
 import { WardDirectory } from "@/components/home/ward-directory";
@@ -65,6 +66,8 @@ export default async function HomePage({
           <StatisticsStrip stats={content.stats} />
         </div>
       </section>
+
+      <LeadershipSection />
 
       <section className="mx-auto max-w-6xl px-4 py-8">
         <SectionHeading
