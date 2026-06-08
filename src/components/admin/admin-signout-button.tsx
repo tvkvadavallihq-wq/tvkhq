@@ -26,7 +26,13 @@ export function AdminSignOutButton() {
   });
 
   return (
-    <Button variant="outline" size="sm" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+    <Button
+      variant="destructive"
+      size="sm"
+      className="border border-[#ffd6d6]/30 bg-[#b91c1c] text-white shadow-sm hover:bg-[#991b1b] hover:text-white"
+      onClick={() => mutation.mutate()}
+      disabled={mutation.isPending}
+    >
       <LogOut className="size-4" />
       வெளியேறு
     </Button>
