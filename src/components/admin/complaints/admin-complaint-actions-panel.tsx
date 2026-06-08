@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ComplaintStatus, complaintStatusTamil, userRoleTamil } from "@/lib/enums";
+import { ComplaintStatus, complaintStatusTamil } from "@/lib/enums";
 import type { AdminComplaintActionConfig } from "@/lib/repositories/admin-complaints";
 import { cn } from "@/lib/utils";
 
@@ -94,17 +94,20 @@ export function AdminComplaintActionsPanel({
           <input type="hidden" name="action" value="assign" />
           <div className="space-y-1">
             <p className="text-sm font-bold">புகாரை ஒதுக்கவும்</p>
-            <p className="text-sm text-muted-foreground">தேர்ந்தெடுத்த அடுத்த நிலை பொறுப்பாளருக்கு ஒதுக்கவும்.</p>
+            <p className="text-sm text-muted-foreground">தேர்ந்தெடுத்த பகுதிப் பொறுப்பாளருக்கு ஒதுக்கவும்.</p>
           </div>
           <div className="space-y-2">
             <label htmlFor="assigned_to" className="text-sm font-semibold">
-              ஒதுக்க வேண்டியவர்
+              பகுதிப் பொறுப்பாளர்
             </label>
             <select id="assigned_to" name="assigned_to" required className="h-10 w-full rounded-md border bg-background px-3 text-sm">
-              <option value="">பயனரைத் தேர்வு செய்யவும்</option>
+              <option value="">POC-ஐத் தேர்வு செய்யவும்</option>
               {actionConfig.assignableUsers.map((user) => (
                 <option key={user.id} value={user.id}>
-                  {user.full_name} · {userRoleTamil[user.role]}{user.ward_number ? ` · Ward ${user.ward_number}` : ""}
+                  {user.area_name}
+                  {user.name ? ` · ${user.name}` : ""}
+                  {user.mobile ? ` · ${user.mobile}` : ""}
+                  {user.ward_number ? ` · Ward ${user.ward_number}` : ""}
                 </option>
               ))}
             </select>
@@ -114,7 +117,7 @@ export function AdminComplaintActionsPanel({
             {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <UserRoundPlus className="size-4" />}
             ஒதுக்கவும்
           </Button>
-          {actionConfig.assignableUsers.length === 0 ? <p className="text-sm text-muted-foreground">ஒதுக்க ஏற்ற பயனர்கள் இல்லை.</p> : null}
+          {actionConfig.assignableUsers.length === 0 ? <p className="text-sm text-muted-foreground">ஒதுக்க ஏற்ற பகுதிப் பொறுப்பாளர்கள் இல்லை.</p> : null}
         </form>
 
         <form className="space-y-3 rounded-lg border bg-background p-4" onSubmit={submitForm}>

@@ -115,7 +115,7 @@ export default async function AdminComplaintDetailPage({
           </Card>
 
           <AdminMediaGallery media={detail.media} />
-          <AdminAssignmentHistory assignments={detail.assignments} usersById={detail.usersById} />
+          <AdminAssignmentHistory assignments={detail.assignments} usersById={detail.usersById} assigneesById={detail.assigneesById} />
           <AdminActivityFeed items={detail.activityFeed} />
         </div>
 

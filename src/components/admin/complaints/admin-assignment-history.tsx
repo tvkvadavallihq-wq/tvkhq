@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { AdminComplaintAssignmentRow, AdminComplaintUser } from "@/lib/repositories/admin-complaints";
-import { userRoleTamil } from "@/lib/enums";
+import type { AdminComplaintAssignee, AdminComplaintAssignmentRow, AdminComplaintUser } from "@/lib/repositories/admin-complaints";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ta-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -9,9 +8,11 @@ function formatDate(value: string) {
 export function AdminAssignmentHistory({
   assignments,
   usersById,
+  assigneesById,
 }: {
   assignments: AdminComplaintAssignmentRow[];
   usersById: Record<string, AdminComplaintUser>;
+  assigneesById: Record<string, AdminComplaintAssignee>;
 }) {
   return (
     <Card>
@@ -26,7 +27,7 @@ export function AdminAssignmentHistory({
             .slice()
             .reverse()
             .map((assignment) => {
-              const assignedTo = usersById[assignment.assigned_to] ?? null;
+              const assignedTo = assigneesById[assignment.assigned_to] ?? null;
               const assignedBy = assignment.assigned_by ? usersById[assignment.assigned_by] ?? null : null;
 
               return (
@@ -36,9 +37,9 @@ export function AdminAssignmentHistory({
                     <p className="text-xs text-muted-foreground">{formatDate(assignment.created_at)}</p>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {assignedBy ? userRoleTamil[assignedBy.role] : "System"}
+                    {assignedBy ? assignedBy.full_name : "System"}
                     {" → "}
-                    {assignedTo ? `${assignedTo.full_name} · ${userRoleTamil[assignedTo.role]}` : assignment.assigned_to_role ?? "-"}
+                    {assignedTo ? `${assignedTo.area_name}${assignedTo.mobile ? ` · ${assignedTo.mobile}` : ""}` : "-"}
                   </p>
                   {assignment.remarks ? <p className="mt-2 text-sm leading-6">{assignment.remarks}</p> : null}
                 </div>

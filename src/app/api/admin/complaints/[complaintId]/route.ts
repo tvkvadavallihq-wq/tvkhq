@@ -292,23 +292,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
         return NextResponse.json({ ok: false, error: parsed.error.issues[0]?.message ?? "சரியான தகவலை உள்ளிடவும்." }, { status: 400 });
       }
 
-      const targetUserResult = await service.from("users").select("id,role,is_active,ward_id").eq("id", parsed.data.assigned_to).maybeSingle();
+      const targetUserResult = await service.from("area_pocs").select("id,name,mobile,whatsapp,area_name,ward_id,is_active,wards(*)").eq("id", parsed.data.assigned_to).maybeSingle();
       if (targetUserResult.error) {
         throw new Error(targetUserResult.error.message);
       }
       if (!targetUserResult.data || !targetUserResult.data.is_active) {
-        return NextResponse.json({ ok: false, error: "ஒதுக்க வேண்டிய பயனர் கிடைக்கவில்லை." }, { status: 400 });
+        return NextResponse.json({ ok: false, error: "ஒதுக்க வேண்டிய பகுதிப் பொறுப்பாளர் கிடைக்கவில்லை." }, { status: 400 });
       }
 
-      const targetRole = targetUserResult.data.role as UserRole;
-      const expectedRole = nextAssignmentRole(session.profile.role);
+      const wardRelation = Array.isArray((targetUserResult.data as any).wards) ? (targetUserResult.data as any).wards[0] ?? null : (targetUserResult.data as any).wards ?? null;
       const isSameWardTarget =
         !targetUserResult.data.ward_id ||
         targetUserResult.data.ward_id === complaint.ward_id ||
         targetUserResult.data.ward_id === session.profile.ward_id;
 
-      if ((!expectedRole || targetRole !== expectedRole) && !isSameWardTarget) {
-        return NextResponse.json({ ok: false, error: `Role ${session.profile.role} can assign only to ${expectedRole ?? "same ward active users"}.` }, { status: 400 });
+      if (!isSameWardTarget) {
+        return NextResponse.json({ ok: false, error: "இந்தப் புகாருக்கு அதே வார்டின் பகுதிப் பொறுப்பாளரையே தேர்வு செய்யவும்." }, { status: 400 });
       }
 
       const currentStatus = complaint.current_status as ComplaintStatus;

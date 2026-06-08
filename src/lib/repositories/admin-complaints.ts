@@ -51,10 +51,23 @@ export type AdminComplaintAssignmentRow = {
   complaint_id: string;
   assigned_to: string;
   assigned_by: string | null;
-  assigned_by_role: UserRole | null;
-  assigned_to_role: UserRole | null;
+  assigned_to_name: string | null;
+  assigned_to_mobile: string | null;
+  assigned_to_area_name: string | null;
+  assigned_to_ward_number: number | null;
   remarks: string | null;
   created_at: string;
+};
+
+export type AdminComplaintAssignee = {
+  id: string;
+  name: string;
+  mobile: string | null;
+  whatsapp: string | null;
+  area_name: string;
+  ward_id: string | null;
+  ward_number: number | null;
+  is_active: boolean;
 };
 
 export type AdminComplaintStatusRow = {
@@ -146,16 +159,17 @@ export type AdminComplaintDetail = {
   media: AdminComplaintMediaRow[];
   activityFeed: AdminComplaintActivity[];
   usersById: Record<string, AdminComplaintUser>;
+  assigneesById: Record<string, AdminComplaintAssignee>;
 };
 
 export type AdminComplaintActionConfig = {
   canVerify: boolean;
   allowedStatuses: ComplaintStatus[];
-  assignableUsers: AdminComplaintUser[];
+  assignableUsers: AdminComplaintAssignee[];
 };
 
 export type AdminComplaintFilterOptions = ComplaintFilterOptions & {
-  assignees: Array<{ id: string; name: string; role: UserRole; ward_number: number | null }>;
+  assignees: Array<{ id: string; name: string; area_name: string; ward_number: number | null }>;
 };
 
 function getClient(): SupabaseClient {
@@ -244,6 +258,37 @@ async function getUsersMap(client: SupabaseClient, ids: string[]) {
   return map;
 }
 
+async function getAreaPocsMap(client: SupabaseClient, ids: string[]) {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+
+  if (uniqueIds.length === 0) {
+    return {} as Record<string, AdminComplaintAssignee>;
+  }
+
+  const { data } = await client
+    .from("area_pocs")
+    .select("id,name,mobile,whatsapp,area_name,ward_id,is_active,wards(*)")
+    .in("id", uniqueIds);
+
+  const map: Record<string, AdminComplaintAssignee> = {};
+
+  (data ?? []).forEach((row: any) => {
+    const wardRelation = Array.isArray(row.wards) ? row.wards[0] ?? null : row.wards ?? null;
+    map[row.id] = {
+      id: row.id,
+      name: row.name ?? row.area_name ?? "",
+      mobile: row.mobile ?? null,
+      whatsapp: row.whatsapp ?? null,
+      area_name: row.area_name ?? row.name ?? "",
+      ward_id: row.ward_id ?? null,
+      ward_number: getWardNumber(wardRelation) ?? null,
+      is_active: row.is_active ?? true,
+    };
+  });
+
+  return map;
+}
+
 function applyScope(query: SupabaseClient, profile: AdminProfile) {
   if (profile.role === UserRole.SUPER_ADMIN) {
     return query;
@@ -265,8 +310,8 @@ export async function getAdminComplaintFilterOptions(profile: AdminProfile): Pro
 
   const client = getClient();
   const canManageGlobal = profile.role === UserRole.SUPER_ADMIN;
-  const usersQuery = client.from("users").select("id,name,role,ward_id,wards(*)").eq("is_active", true).order("name");
-  const { data, error } = canManageGlobal ? await usersQuery : await usersQuery.eq("ward_id", profile.ward_id ?? "00000000-0000-0000-0000-000000000000");
+  const pocsQuery = client.from("area_pocs").select("id,name,mobile,whatsapp,area_name,ward_id,is_active,wards(*)").eq("is_active", true).order("area_name");
+  const { data, error } = canManageGlobal ? await pocsQuery : await pocsQuery.eq("ward_id", profile.ward_id ?? "00000000-0000-0000-0000-000000000000");
 
   if (error) {
     return { ...base, assignees: [] };
@@ -276,8 +321,8 @@ export async function getAdminComplaintFilterOptions(profile: AdminProfile): Pro
     const wardRelation = Array.isArray(user.wards) ? user.wards[0] ?? null : user.wards ?? null;
     return {
       id: user.id,
-      name: user.name ?? "",
-      role: user.role,
+      name: user.name ?? user.area_name ?? "",
+      area_name: user.area_name ?? user.name ?? "",
       ward_number: getWardNumber(wardRelation) ?? null,
     };
   });
@@ -341,13 +386,13 @@ export async function getAdminComplaintList(
     throw new Error(error.message);
   }
 
-  const assignedUserIds = Array.from(new Set((data ?? []).map((item: any) => item.assigned_user_id).filter(Boolean)));
+  const assignedAssigneeIds = Array.from(new Set((data ?? []).map((item: any) => item.assigned_user_id).filter(Boolean)));
   const assignedUsersMap: Record<string, { name: string }> = {};
 
-  if (assignedUserIds.length > 0) {
-    const { data: assignedUsers } = await client.from("users").select("id,name").in("id", assignedUserIds);
-    (assignedUsers ?? []).forEach((user: any) => {
-      assignedUsersMap[user.id] = { name: user.name ?? "" };
+  if (assignedAssigneeIds.length > 0) {
+    const { data: assignedPocs } = await client.from("area_pocs").select("id,name,area_name").in("id", assignedAssigneeIds);
+    (assignedPocs ?? []).forEach((poc: any) => {
+      assignedUsersMap[poc.id] = { name: poc.name ?? poc.area_name ?? "" };
     });
   }
 
@@ -394,6 +439,7 @@ export async function getAdminComplaintDetail(
       media: [],
       activityFeed: [],
       usersById: {},
+      assigneesById: {},
     };
   }
 
@@ -444,12 +490,21 @@ export async function getAdminComplaintDetail(
     client.from("complaint_media").select("id,complaint_id,file_url,media_type,uploaded_by,created_at").eq("complaint_id", complaintId).order("created_at", { ascending: true }),
   ]);
 
+  const assigneeIds = Array.from(
+    new Set<string>((assignments ?? []).map((row: any) => row.assigned_to).filter((value: unknown): value is string => Boolean(value))),
+  );
+  const assigneesById = await getAreaPocsMap(client, assigneeIds);
+
   const assignmentRows = (assignments ?? []).map((row: any) => ({
     id: row.id,
     complaint_id: row.complaint_id,
     assigned_to: row.assigned_to,
     assigned_by: row.assigned_by ?? null,
-    remarks: row.remarks ?? row.note ?? null,
+    assigned_to_name: assigneesById[row.assigned_to]?.name ?? null,
+    assigned_to_mobile: assigneesById[row.assigned_to]?.mobile ?? null,
+    assigned_to_area_name: assigneesById[row.assigned_to]?.area_name ?? null,
+    assigned_to_ward_number: assigneesById[row.assigned_to]?.ward_number ?? null,
+    remarks: row.remarks ?? null,
     created_at: row.created_at ?? new Date().toISOString(),
   })) as AdminComplaintAssignmentRow[];
   const statusRows = (statusHistory ?? []).map((row: any) => ({
@@ -464,10 +519,10 @@ export async function getAdminComplaintDetail(
   const mediaRows = (media ?? []) as AdminComplaintMediaRow[];
 
   const userIds = [
-    ...assignmentRows.flatMap((row) => [row.assigned_to, row.assigned_by ?? ""]),
+    ...assignmentRows.flatMap((row) => [row.assigned_by ?? ""]),
     ...statusRows.flatMap((row) => [row.updated_by ?? ""]),
     ...mediaRows.map((row) => row.uploaded_by ?? ""),
-  ].filter(Boolean);
+  ].filter((value): value is string => Boolean(value));
 
   const usersById = await getUsersMap(client, userIds);
 
@@ -555,6 +610,7 @@ export async function getAdminComplaintDetail(
     media: hydratedMedia,
     activityFeed,
     usersById,
+    assigneesById,
   };
 }
 
@@ -568,7 +624,6 @@ export async function getAdminComplaintActionConfig(
   }
 
   const client = getClient();
-  const targetRole = nextAssignmentRole(profile.role);
   if (profile.role !== UserRole.SUPER_ADMIN && !profile.ward_id) {
     return {
       canVerify: profile.role !== UserRole.VOLUNTEER,
@@ -576,46 +631,24 @@ export async function getAdminComplaintActionConfig(
       assignableUsers: [],
     };
   }
-  const baseQuery = client.from("users").select("id,name,mobile,role,ward_id,wards(*)").eq("is_active", true);
+  const wardScope = profile.role === UserRole.SUPER_ADMIN ? wardId || profile.ward_id || null : wardId || profile.ward_id || null;
+  const baseQuery = client.from("area_pocs").select("id,name,mobile,whatsapp,area_name,ward_id,is_active,wards(*)").eq("is_active", true);
 
-  const primaryUsers =
-    targetRole === null
-      ? []
-      : (await baseQuery.eq("role", targetRole).order("name")).data?.map((user: any) => {
-          const wardRelation = Array.isArray(user.wards) ? user.wards[0] ?? null : user.wards ?? null;
-          return {
-            id: user.id,
-            full_name: user.name ?? user.full_name ?? "",
-            phone: user.mobile ?? user.phone ?? null,
-            role: user.role,
-            ward_id: user.ward_id ?? null,
-            ward_number: getWardNumber(wardRelation) ?? null,
-          };
-        }) ?? [];
+  const { data } = wardScope ? await baseQuery.eq("ward_id", wardScope).order("area_name") : await baseQuery.order("area_name");
 
-  const fallbackUsers =
-    primaryUsers.length > 0
-      ? []
-      : (await baseQuery
-          .neq("role", UserRole.SUPER_ADMIN)
-          .order("name")).data?.map((user: any) => {
-          const wardRelation = Array.isArray(user.wards) ? user.wards[0] ?? null : user.wards ?? null;
-          return {
-            id: user.id,
-            full_name: user.name ?? user.full_name ?? "",
-            phone: user.mobile ?? user.phone ?? null,
-            role: user.role,
-            ward_id: user.ward_id ?? null,
-            ward_number: getWardNumber(wardRelation) ?? null,
-          };
-        }) ?? [];
-
-  const assignableUsers = [...primaryUsers, ...fallbackUsers].filter((user, index, array) => array.findIndex((item) => item.id === user.id) === index);
-
-  const scopedAssignableUsers =
-    profile.role === UserRole.SUPER_ADMIN
-      ? assignableUsers
-      : assignableUsers.filter((user: AdminComplaintUser) => user.ward_id === profile.ward_id || user.ward_id === wardId || !user.ward_id);
+  const scopedAssignableUsers = (data ?? []).map((user: any) => {
+    const wardRelation = Array.isArray(user.wards) ? user.wards[0] ?? null : user.wards ?? null;
+    return {
+      id: user.id,
+      name: user.name ?? user.area_name ?? "",
+      mobile: user.mobile ?? null,
+      whatsapp: user.whatsapp ?? null,
+      area_name: user.area_name ?? user.name ?? "",
+      ward_id: user.ward_id ?? null,
+      ward_number: getWardNumber(wardRelation) ?? null,
+      is_active: user.is_active ?? true,
+    };
+  });
 
   return {
     canVerify: profile.role !== UserRole.VOLUNTEER,
