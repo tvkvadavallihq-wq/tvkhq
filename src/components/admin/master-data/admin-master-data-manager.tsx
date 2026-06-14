@@ -13,7 +13,7 @@ import type { AdminMasterData, MasterActionType } from "@/lib/repositories/admin
 import { cn } from "@/lib/utils";
 
 type FormMutation = UseMutationResult<string, Error, { action: MasterActionType; formData: FormData }>;
-type MasterTabKey = "users" | "wards" | "categories" | "pocs" | "announcements" | "banners";
+type MasterTabKey = "users" | "wards" | "categories" | "areas" | "pocs" | "announcements" | "banners";
 
 function submitAction(action: MasterActionType, formData: FormData) {
   formData.set("action", action);
@@ -55,6 +55,7 @@ export function AdminMasterDataManager({
         canManageGlobal ? { key: "users" as const, label: "பயனர்கள்" } : null,
         canManageGlobal ? { key: "wards" as const, label: "வார்டுகள்" } : null,
         canManageGlobal ? { key: "categories" as const, label: "வகைகள்" } : null,
+        canManageGlobal ? { key: "areas" as const, label: "பகுதிகள்" } : null,
         { key: "pocs" as const, label: "பகுதிகள் / POCs" },
         canManageGlobal ? { key: "announcements" as const, label: "அறிவிப்புகள்" } : null,
         canManageGlobal ? { key: "banners" as const, label: "பேனர்கள்" } : null,
@@ -148,6 +149,25 @@ export function AdminMasterDataManager({
                 onToggle={() => mutateToggle(mutation, "toggle-category", category.id, category.is_active)}
               />
             ))}
+          </div>
+        </TabPanel>
+      ) : null}
+
+      {currentTab?.key === "areas" && canManageGlobal ? (
+        <TabPanel title="பகுதிகள்" helper="Areas table" action={renderAreaForm(mutation, data.wards)}>
+          <div className="grid gap-2">
+            {data.areas.map((area) => (
+              <MasterRow
+                key={area.id}
+                title={area.name}
+                meta={[area.ward_number ? `Ward ${area.ward_number}` : null, area.pincode ? `Pincode ${area.pincode}` : null, area.id.slice(0, 8)]
+                  .filter(Boolean)
+                  .join(" · ")}
+                active={true}
+                canToggle={false}
+              />
+            ))}
+            {data.areas.length === 0 ? <p className="text-sm text-muted-foreground">பகுதிகள் இல்லை.</p> : null}
           </div>
         </TabPanel>
       ) : null}
@@ -305,6 +325,29 @@ function renderWardForm(mutation: FormMutation) {
         <Button type="submit" disabled={mutation.isPending}>
           {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
           சேர்க்கவும்
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function renderAreaForm(mutation: FormMutation, wards: AdminMasterData["wards"]) {
+  return (
+    <form className="grid gap-3 md:grid-cols-2" onSubmit={(event) => handleSubmit(event, mutation, "create-area")}>
+      <select name="ward_id" required className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+        <option value="">Ward தேர்வு செய்யவும்</option>
+        {wards.map((ward) => (
+          <option key={ward.id} value={ward.id}>
+            Ward {ward.ward_number}
+          </option>
+        ))}
+      </select>
+      <Input name="name" placeholder="Area name" required />
+      <Input name="pincode" placeholder="Pincode" />
+      <div className="md:col-span-2">
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          பகுதியைச் சேர்க்கவும்
         </Button>
       </div>
     </form>

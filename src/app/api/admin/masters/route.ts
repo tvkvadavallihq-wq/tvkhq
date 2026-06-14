@@ -30,6 +30,7 @@ function parseAction(action: string): MasterActionType | null {
     "toggle-category",
     "create-ward",
     "toggle-ward",
+    "create-area",
     "create-poc",
     "toggle-poc",
     "create-announcement",
@@ -133,6 +134,20 @@ export async function POST(request: Request) {
         });
         if (error) throw new Error(error.message);
         resultMessage = "வார்டு சேர்க்கப்பட்டது.";
+        break;
+      }
+      case "create-area": {
+        const payload = value as { ward_id: string; name: string; pincode: string | null };
+        if (!payload.ward_id || !payload.name) return badRequest("Area விவரங்கள் தேவை.");
+
+        const { error } = await client.from("areas").insert({
+          id: randomUUID(),
+          ward_id: payload.ward_id,
+          name: payload.name,
+          pincode: payload.pincode,
+        });
+        if (error) throw new Error(error.message);
+        resultMessage = "Area சேர்க்கப்பட்டது.";
         break;
       }
       case "toggle-ward": {

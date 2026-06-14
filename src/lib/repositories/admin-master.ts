@@ -43,6 +43,15 @@ export type AdminPocRow = {
   created_at: string;
 };
 
+export type AdminAreaRow = {
+  id: string;
+  ward_id: string;
+  ward_number: number | null;
+  name: string;
+  pincode: string | null;
+  created_at: string;
+};
+
 export type AdminAnnouncementRow = {
   id: string;
   title: string;
@@ -80,6 +89,7 @@ export type AdminMasterData = {
   wards: AdminWardRow[];
   categories: AdminCategoryRow[];
   pocs: AdminPocRow[];
+  areas: AdminAreaRow[];
   announcements: AdminAnnouncementRow[];
   banners: AdminBannerRow[];
   users: AdminUserRow[];
@@ -135,7 +145,7 @@ async function loadAdminUsers(client: SupabaseClient): Promise<AdminUserRow[]> {
 
 export async function getAdminMasterData(profile: AdminProfile): Promise<AdminMasterData> {
   if (!isSupabaseConfigured()) {
-    return { wards: [], categories: [], pocs: [], announcements: [], banners: [], users: [] };
+    return { wards: [], categories: [], pocs: [], areas: [], announcements: [], banners: [], users: [] };
   }
 
   const client = getClient();
@@ -191,6 +201,27 @@ export async function getAdminMasterData(profile: AdminProfile): Promise<AdminMa
       .filter((row) => (canManageGlobal ? true : row.ward_id === wardFilter)),
   );
 
+  const areas = canManageGlobal
+    ? await safeQuery<any>(() =>
+        client
+          .from("areas")
+          .select("id,ward_id,name,pincode,created_at,wards(*)")
+          .order("created_at", { ascending: false }),
+      ).then((rows) =>
+        rows.map((row: any) => {
+          const wardRelation = Array.isArray(row.wards) ? row.wards[0] ?? null : row.wards ?? null;
+          return {
+            id: row.id,
+            ward_id: row.ward_id,
+            ward_number: getWardNumber(wardRelation) ?? null,
+            name: row.name,
+            pincode: row.pincode ?? null,
+            created_at: row.created_at,
+          } satisfies AdminAreaRow;
+        }),
+      )
+    : [];
+
   const announcements = canManageGlobal
     ? await safeQuery<any>(() =>
         client.from("announcements").select("id,title,content,image_url,created_by,created_at").order("created_at", { ascending: false }),
@@ -214,7 +245,7 @@ export async function getAdminMasterData(profile: AdminProfile): Promise<AdminMa
 
   const users = canManageGlobal ? await loadAdminUsers(client) : [];
 
-  return { wards, categories, pocs, announcements, banners, users };
+  return { wards, categories, pocs, areas, announcements, banners, users };
 }
 
 export type MasterActionType =
@@ -222,6 +253,7 @@ export type MasterActionType =
   | "toggle-category"
   | "create-ward"
   | "toggle-ward"
+  | "create-area"
   | "create-poc"
   | "toggle-poc"
   | "create-announcement"
@@ -258,6 +290,12 @@ export function normalizeMasterActionValue(action: MasterActionType, formData: F
         secretary_name: sanitizeText(String(formData.get("secretary_name") ?? "")) || null,
         secretary_mobile: sanitizeText(String(formData.get("secretary_mobile") ?? "")) || null,
         secretary_whatsapp: sanitizeText(String(formData.get("secretary_whatsapp") ?? "")) || null,
+      };
+    case "create-area":
+      return {
+        ward_id: sanitizeText(String(formData.get("ward_id") ?? "")),
+        name: sanitizeText(String(formData.get("name") ?? "")),
+        pincode: sanitizeText(String(formData.get("pincode") ?? "")) || null,
       };
     case "create-poc":
       return {
