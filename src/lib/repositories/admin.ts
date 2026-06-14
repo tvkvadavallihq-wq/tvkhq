@@ -34,6 +34,7 @@ export type AdminMetricCard = {
 };
 
 export type AdminChartDatum = {
+  id?: string | null;
   label: string;
   value: number;
 };
@@ -186,7 +187,7 @@ export async function getAdminDashboard(): Promise<AdminDashboardResult> {
   const complaints = (complaintsResult.data ?? []) as any[];
 
   const wardCounts = new Map<string, number>();
-  const categoryCounts = new Map<string, number>();
+  const categoryCounts = new Map<string, { label: string; value: number }>();
   const resolutionBuckets = new Map<string, number>([
     ["< 1 day", 0],
     ["1-3 days", 0],
@@ -203,8 +204,13 @@ export async function getAdminDashboard(): Promise<AdminDashboardResult> {
     const wardLabel = getWardNumber(wardRelation) !== null ? `Ward ${getWardNumber(wardRelation)}` : "Unassigned";
     wardCounts.set(wardLabel, (wardCounts.get(wardLabel) ?? 0) + 1);
 
+    const categoryId = complaint.category_id ?? categoryRelation?.id ?? "uncategorized";
     const categoryLabel = categoryRelation?.name_ta ?? "Uncategorized";
-    categoryCounts.set(categoryLabel, (categoryCounts.get(categoryLabel) ?? 0) + 1);
+    const existingCategory = categoryCounts.get(categoryId);
+    categoryCounts.set(categoryId, {
+      label: categoryLabel,
+      value: (existingCategory?.value ?? 0) + 1,
+    });
 
     if (resolveStatus(complaint.current_status)) {
       const created = new Date(complaint.created_at).getTime();
@@ -220,7 +226,7 @@ export async function getAdminDashboard(): Promise<AdminDashboardResult> {
     .sort((a, b) => b.value - a.value)
     .slice(0, 6);
   const byCategory = Array.from(categoryCounts.entries())
-    .map(([label, value]) => ({ label, value }))
+    .map(([id, entry]) => ({ id, label: entry.label, value: entry.value }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 6);
   const resolutionTime = Array.from(resolutionBuckets.entries()).map(([label, value]) => ({ label, value }));

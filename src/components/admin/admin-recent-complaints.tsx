@@ -10,6 +10,9 @@ function formatDate(value: string) {
 
 export function AdminRecentComplaints({
   complaints,
+  title = "சமீபத்திய புகார்கள்",
+  description,
+  emptyText = "புகார்கள் இல்லை.",
 }: {
   complaints: Array<{
     id: string;
@@ -22,15 +25,19 @@ export function AdminRecentComplaints({
     ward_number: number | null;
     category_name_ta: string | null;
   }>;
+  title?: string;
+  description?: string;
+  emptyText?: string;
 }) {
   return (
-      <Card>
+    <Card>
       <CardHeader>
-        <CardTitle>சமீபத்திய புகார்கள்</CardTitle>
+        <CardTitle>{title}</CardTitle>
+        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </CardHeader>
       <CardContent className="space-y-3">
         {complaints.length === 0 ? (
-          <p className="text-sm text-muted-foreground">புகார்கள் இல்லை.</p>
+          <p className="text-sm text-muted-foreground">{emptyText}</p>
         ) : (
           complaints.map((complaint) => (
             <div key={complaint.id} className="grid gap-3 rounded-lg border p-4 lg:grid-cols-[1fr_auto] lg:items-center">

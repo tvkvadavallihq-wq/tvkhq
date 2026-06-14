@@ -15,6 +15,7 @@ export type AdminComplaintListFilters = {
   category?: string;
   assignee?: string;
   status?: ComplaintStatus;
+  statuses?: ComplaintStatus[];
   sort?: "created_at" | "updated_at" | "priority" | "current_status";
   order?: "asc" | "desc";
   page?: number;
@@ -364,7 +365,9 @@ export async function getAdminComplaintList(
   }
 
   if (filters.category) {
-    query = query.eq("category_id", filters.category);
+    if (/^[0-9a-fA-F-]{36}$/.test(filters.category)) {
+      query = query.eq("category_id", filters.category);
+    }
   }
 
   if (filters.assignee) {
@@ -387,7 +390,9 @@ export async function getAdminComplaintList(
     query = query.in("id", complaintIds);
   }
 
-  if (filters.status) {
+  if (filters.statuses && filters.statuses.length > 0) {
+    query = query.in("current_status", filters.statuses);
+  } else if (filters.status) {
     query = query.eq("current_status", filters.status);
   }
 

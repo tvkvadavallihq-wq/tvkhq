@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
-type ChartDatum = { label: string; value: number };
+type ChartDatum = { label: string; value: number; href?: string; selected?: boolean };
 
 export function AdminCharts({
   complaintsByWard,
@@ -45,15 +47,34 @@ function ChartCard({
           <div className="space-y-3">
             {data.map((item) => {
               const width = `${Math.max(6, Math.round((item.value / max) * 100))}%`;
+              const rowClass = cn(
+                "space-y-1 rounded-xl border border-transparent p-2 -mx-2 transition",
+                item.href && "cursor-pointer hover:border-border hover:bg-muted/40",
+                item.selected && "border-primary/30 bg-primary/5",
+              );
               return (
-                <div key={item.label} className="space-y-1">
-                  <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="min-w-0 truncate font-medium">{item.label}</span>
-                    <span className="font-bold">{item.value}</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted">
-                    <div className={`h-2 rounded-full ${barClass}`} style={{ width }} />
-                  </div>
+                <div key={item.label} className={rowClass}>
+                  {item.href ? (
+                    <Link href={item.href as never} className="block">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="min-w-0 truncate font-medium">{item.label}</span>
+                        <span className="font-bold">{item.value}</span>
+                      </div>
+                      <div className="mt-1 h-2 rounded-full bg-muted">
+                        <div className={`h-2 rounded-full ${barClass}`} style={{ width }} />
+                      </div>
+                    </Link>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="min-w-0 truncate font-medium">{item.label}</span>
+                        <span className="font-bold">{item.value}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted">
+                        <div className={`h-2 rounded-full ${barClass}`} style={{ width }} />
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })}
