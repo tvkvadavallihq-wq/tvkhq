@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowRight, FileImage, FileVideo2, Loader2, LocateFixed, RotateCcw } from "lucide-react";
+import { ArrowRight, FileImage, FileVideo2, Loader2, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCurrentLocation } from "@/hooks/use-current-location";
 import { COMPLAINT_UPLOAD_LIMITS } from "@/lib/constants";
 import { complaintSchema, type ComplaintFormValues } from "@/lib/validators";
 
@@ -112,19 +111,11 @@ function ComplaintLocationSection({
   register,
   errors,
   wards,
-  requestCurrentLocation,
-  isLocating,
-  locationError,
-  setValue,
   selectedWardId,
 }: {
   register: ReturnType<typeof useForm<ComplaintFormValues>>["register"];
   errors: ReturnType<typeof useForm<ComplaintFormValues>>["formState"]["errors"];
   wards: WardOption[];
-  requestCurrentLocation: () => Promise<{ latitude: number; longitude: number } | null>;
-  isLocating: boolean;
-  locationError: string | null;
-  setValue: ReturnType<typeof useForm<ComplaintFormValues>>["setValue"];
   selectedWardId: string;
 }) {
   const visibleAreasQuery = useQuery({
@@ -194,36 +185,6 @@ function ComplaintLocationSection({
         <Field id="address" label="Address" error={errors.address?.message}>
           <Textarea id="address" {...register("address")} />
         </Field>
-
-        <div className="grid gap-5 md:grid-cols-2">
-          <Field id="gps_latitude" label="GPS Latitude" error={errors.gps_latitude?.message}>
-            <Input id="gps_latitude" inputMode="decimal" placeholder="11.0123456" {...register("gps_latitude")} />
-          </Field>
-          <Field id="gps_longitude" label="GPS Longitude" error={errors.gps_longitude?.message}>
-            <Input id="gps_longitude" inputMode="decimal" placeholder="76.1234567" {...register("gps_longitude")} />
-          </Field>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={async () => {
-              const location = await requestCurrentLocation();
-              if (!location) {
-                return;
-              }
-
-              setValue("gps_latitude", location.latitude, { shouldValidate: true, shouldDirty: true });
-              setValue("gps_longitude", location.longitude, { shouldValidate: true, shouldDirty: true });
-            }}
-            disabled={isLocating}
-          >
-            {isLocating ? <Loader2 className="size-4 animate-spin" /> : <LocateFixed className="size-4" />}
-            GPS பெறுக
-          </Button>
-          {locationError ? <p className="text-sm font-medium text-destructive">{locationError}</p> : null}
-        </div>
       </CardContent>
     </Card>
   );
@@ -341,7 +302,6 @@ function ComplaintMediaSection({
 
 export function ComplaintForm({ wards, categories }: { wards: WardOption[]; categories: Option[] }) {
   const router = useRouter();
-  const location = useCurrentLocation();
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [videoFiles, setVideoFiles] = useState<File[]>([]);
 
@@ -355,8 +315,6 @@ export function ComplaintForm({ wards, categories }: { wards: WardOption[]; cate
   } = useForm<ComplaintFormValues>({
     resolver: zodResolver(complaintSchema),
     defaultValues: {
-      gps_latitude: undefined,
-      gps_longitude: undefined,
       image_files: [],
       video_files: [],
     },
@@ -391,8 +349,6 @@ export function ComplaintForm({ wards, categories }: { wards: WardOption[]; cate
       formData.set("ward_id", values.ward_id);
       formData.set("area_name", values.area_name);
       formData.set("address", values.address);
-      formData.set("gps_latitude", String(values.gps_latitude));
-      formData.set("gps_longitude", String(values.gps_longitude));
       formData.set("category_id", values.category_id);
       formData.set("description", values.description);
       (values.image_files ?? []).forEach((file) => formData.append("image_files", file));
@@ -447,10 +403,6 @@ export function ComplaintForm({ wards, categories }: { wards: WardOption[]; cate
           register={register}
           errors={errors}
           wards={wards}
-          requestCurrentLocation={location.requestLocation}
-          isLocating={location.isLocating}
-          locationError={location.locationError}
-          setValue={setValue}
           selectedWardId={selectedWardId}
         />
         <ComplaintDetailsSection register={register} errors={errors} categories={categories} />

@@ -16,8 +16,6 @@ export async function POST(request: Request) {
       ward_id: String(formData.get("ward_id") ?? ""),
       area_name: String(formData.get("area_name") ?? ""),
       address: String(formData.get("address") ?? ""),
-      gps_latitude: String(formData.get("gps_latitude") ?? ""),
-      gps_longitude: String(formData.get("gps_longitude") ?? ""),
       category_id: String(formData.get("category_id") ?? ""),
       description: String(formData.get("description") ?? ""),
       image_files: formData.getAll("image_files").filter((value): value is File => value instanceof File),

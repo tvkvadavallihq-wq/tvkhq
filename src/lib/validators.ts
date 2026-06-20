@@ -46,8 +46,8 @@ export const complaintSchema = z.object({
   category_id: z.string().uuid("வகையை தேர்வு செய்யவும்"),
   area_name: z.string().min(2, "பகுதியை உள்ளிடவும்").max(160),
   address: z.string().min(5, "முகவரியை உள்ளிடவும்").max(500),
-  gps_latitude: z.coerce.number().min(-90, "சரியான latitude உள்ளிடவும்").max(90, "சரியான latitude உள்ளிடவும்"),
-  gps_longitude: z.coerce.number().min(-180, "சரியான longitude உள்ளிடவும்").max(180, "சரியான longitude உள்ளிடவும்"),
+  gps_latitude: z.coerce.number().min(-90, "சரியான latitude உள்ளிடவும்").max(90, "சரியான latitude உள்ளிடவும்").nullable().optional(),
+  gps_longitude: z.coerce.number().min(-180, "சரியான longitude உள்ளிடவும்").max(180, "சரியான longitude உள்ளிடவும்").nullable().optional(),
   image_files: createFileArraySchema({
     label: "படம்",
     mimePrefix: "image/",
