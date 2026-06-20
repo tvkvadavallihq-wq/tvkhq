@@ -189,18 +189,17 @@ export async function getComplaintAreas(wardId: string) {
 
   const supabase = createSupabaseServiceClient() as any;
   const { data } = await supabase
-    .from("area_pocs")
-    .select("id,ward_id,area_name,is_active")
+    .from("areas")
+    .select("id,ward_id,name")
     .eq("ward_id", wardId)
-    .eq("is_active", true)
-    .order("area_name");
+    .order("name");
 
   const seen = new Set<string>();
   return (data ?? [])
-    .map((row: { id: string; ward_id: string | null; area_name: string }) => ({
+    .map((row: { id: string; ward_id: string | null; name: string }) => ({
       id: row.id,
       ward_id: row.ward_id ?? null,
-      area_name: row.area_name,
+      area_name: row.name,
     }))
     .filter((row: { id: string; ward_id: string | null; area_name: string }) => {
       const key = `${row.ward_id}:${row.area_name}`;

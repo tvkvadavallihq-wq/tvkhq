@@ -19,6 +19,7 @@ const columnMap: TableColumnMap = {
     "name_en",
   ]),
   area_pocs: new Set(["id", "ward_id", "name", "mobile", "whatsapp", "area_name", "is_active", "created_at", "updated_at"]),
+  areas: new Set(["id", "ward_id", "name", "pincode", "created_at", "updated_at"]),
   complaint_categories: new Set(["id", "name_ta", "name_en", "icon", "is_active", "created_at"]),
   complaints: new Set([
     "id",

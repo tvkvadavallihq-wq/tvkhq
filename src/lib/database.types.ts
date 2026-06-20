@@ -17,6 +17,12 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["area_pocs"]["Insert"]>;
         Relationships: [];
       };
+      areas: {
+        Row: { id: string; ward_id: string; name: string; pincode: string | null; created_at: string };
+        Insert: { id?: string; ward_id: string; name: string; pincode?: string | null; created_at?: string };
+        Update: Partial<Database["public"]["Tables"]["areas"]["Insert"]>;
+        Relationships: [];
+      };
       complaint_categories: {
         Row: { id: string; name_ta: string; name_en: string | null; slug: string; is_active: boolean; created_at: string };
         Insert: { id?: string; name_ta: string; name_en?: string | null; slug: string; is_active?: boolean; created_at?: string };

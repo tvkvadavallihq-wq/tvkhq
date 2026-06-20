@@ -6,7 +6,7 @@ import { recordAuditEvent } from "@/lib/services/audit";
 import { notifyComplaintCreated } from "@/lib/services/notifications";
 import { logError } from "@/lib/services/logger";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-import { getAreaName, getAreaWardId, getAreaWardNumber, getWardNameTa, getWardNumber, matchesWardReference } from "@/lib/ward-utils";
+import { getAreaName, getWardNameTa, getWardNumber } from "@/lib/ward-utils";
 import { complaintSchema, type ComplaintFormValues } from "@/lib/validators";
 
 export type ComplaintRegistrationInput = ComplaintFormValues;
@@ -81,7 +81,7 @@ export async function registerComplaintSubmission(rawInput: unknown) {
   ] = await Promise.all([
     supabase.from("complaint_categories").select("id,name_ta").eq("id", parsed.category_id).single(),
     supabase.from("wards").select("id,*").eq("id", parsed.ward_id).single(),
-    supabase.from("area_pocs").select("*,wards(*)").eq("area_name", areaName),
+    supabase.from("areas").select("id,ward_id,name").eq("ward_id", parsed.ward_id).eq("name", areaName),
   ]);
 
   if (categoryError) {
@@ -96,17 +96,7 @@ export async function registerComplaintSubmission(rawInput: unknown) {
     throw new Error("பகுதி விவரத்தைப் பெற முடியவில்லை.");
   }
 
-  const wardNumber = getWardNumber(ward as any);
-  const matchingArea =
-    (areaRows ?? []).find((item: unknown) => {
-      const candidate = item as Record<string, unknown> & { wards?: unknown };
-      const candidateWardId = getAreaWardId(candidate as any);
-      const candidateWardNumber = getAreaWardNumber(candidate as any);
-      return (
-        matchesWardReference(candidateWardId, parsed.ward_id, wardNumber) ||
-        (wardNumber !== null && candidateWardNumber === wardNumber)
-      );
-    }) ?? null;
+  const matchingArea = (areaRows ?? [])[0] ?? null;
 
   if (!matchingArea) {
     throw new Error("தேர்ந்த பகுதி அந்த வார்டில் கிடைக்கவில்லை.");
