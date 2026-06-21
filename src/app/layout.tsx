@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { QueryProvider } from "@/components/providers/query-provider";
-import { SiteNav } from "@/components/site-nav";
-import { APP_NAME, APP_NAME_TAMIL } from "@/lib/constants";
+import { SiteShell } from "@/components/site-shell";
+import { APP_NAME } from "@/lib/constants";
+import { getSiteActive } from "@/lib/repositories/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,23 +15,14 @@ export const metadata: Metadata = {
   description: "Tamil-first grievance management platform for Vadavalli ward operations.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  const siteActive = await getSiteActive();
+
   return (
     <html lang="ta">
       <body className="min-h-screen bg-background text-foreground antialiased">
         <QueryProvider>
-          <div className="min-h-screen">
-            <header className="sticky top-0 z-40 overflow-hidden border-b border-[#f4d08a]/30 bg-gradient-to-r from-[#3b0000] via-[#7a0d0d] to-[#b51f13] text-white shadow-[0_8px_30px_rgba(91,0,0,0.22)] backdrop-blur">
-              <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <Link href="/" className="min-w-0">
-                  <p className="text-xs font-semibold text-amber-200 sm:text-sm">{APP_NAME}</p>
-                  <p className="break-words text-base font-black leading-tight text-white sm:text-lg">{APP_NAME_TAMIL}</p>
-                </Link>
-                <SiteNav />
-              </div>
-            </header>
-            <main>{children}</main>
-          </div>
+          <SiteShell siteActive={siteActive}>{children}</SiteShell>
         </QueryProvider>
       </body>
     </html>

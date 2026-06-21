@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-export function AdminLoginForm() {
+export function AdminLoginForm({ siteActive = true }: { siteActive?: boolean }) {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -29,7 +29,7 @@ export function AdminLoginForm() {
       }
     },
     onSuccess() {
-      router.replace("/admin/dashboard");
+      router.replace(siteActive ? "/admin/dashboard" : "/admin/login");
       router.refresh();
     },
   });

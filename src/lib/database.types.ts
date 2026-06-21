@@ -23,6 +23,12 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["areas"]["Insert"]>;
         Relationships: [];
       };
+      site_active: {
+        Row: { id: number; is_active: boolean; updated_at: string };
+        Insert: { id?: number; is_active?: boolean; updated_at?: string };
+        Update: Partial<Database["public"]["Tables"]["site_active"]["Insert"]>;
+        Relationships: [];
+      };
       complaint_categories: {
         Row: { id: string; name_ta: string; name_en: string | null; slug: string; is_active: boolean; created_at: string };
         Insert: { id?: string; name_ta: string; name_en?: string | null; slug: string; is_active?: boolean; created_at?: string };

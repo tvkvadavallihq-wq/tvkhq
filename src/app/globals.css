@@ -69,3 +69,30 @@ textarea,
 select {
   outline-color: hsl(var(--ring));
 }
+
+.launch-confetti-piece {
+  --launch-drift: 0px;
+  --launch-rotation: 0deg;
+  position: absolute;
+  top: -24px;
+  display: block;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+  animation-name: launch-confetti-fall;
+  animation-timing-function: cubic-bezier(0.18, 0.62, 0.32, 1);
+  animation-fill-mode: forwards;
+}
+
+@keyframes launch-confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -24px, 0) rotate(0deg);
+  }
+  8% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--launch-drift), 110vh, 0) rotate(calc(var(--launch-rotation) + 720deg));
+  }
+}
